@@ -1,0 +1,82 @@
+li.prep-time:before {
+	content: "Preparation time: ";
+}
+li.quantité:before {
+	content: "For ";
+}
+li.quantité:after {
+	content: " people";
+}
+li.cooking-time:before {
+	content: "Cooking time: ";
+}
+li.difficulté:before {
+	content: "Difficulty: ";
+}
+li.budget:before {
+	content: "Budget: ";
+}
+.colonne {
+	width: 400px;
+	float: left;
+}
+
+.Autocompleter li.selected {
+	text-decoration: underline;
+	background: #e1e1e1;
+}
+
+.Autocompleter li:hover {
+	text-decoration: underline;
+	background: #e1e1e1;
+}
+
+.autocomplete {
+	background: #e1e1e1;
+}
+
+.ingredient {
+	background: #ffe1e1;
+	padding: 0px 1px;
+	margin: -0px -1px;
+	border-radius: 6px;
+}
+.ustensile {
+	background: #e1ffe1;
+}
+
+.ingredient-hover {
+	background: lightpink;
+}
+.ustensile-hover {
+	background: lightgreen;
+}
+
+.ingredient.action:hover {
+	background: pink;
+}
+.ingredient:hover {
+	background: lightpink;
+}
+.ustensile:hover {
+	background: lightgreen;
+}
+.step:hover {
+	background: lightgrey;
+}
+
+.ingredient:hover:after {
+	content: url("../images/icons/pencil.png") url("../images/icons/comment_add.png");
+	padding-right: 32px;
+	margin-right: -32px;
+}
+.step:hover:after {
+	content: " " url("../images/icons/pencil.png") url("../images/icons/comment_add.png");
+}
+.ustensile:hover:after {
+	content: url("../images/icons/pencil.png") url("../images/icons/comment_add.png");
+}
+.no-gutter {
+	padding-left: 0px !important;
+	padding-right: 0px !important;
+}
