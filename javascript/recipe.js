@@ -296,17 +296,22 @@ console.log("here");
 		var unit = $("#unit_input").val();
 		unit = unit==''?undefined:unit;
 		var label, text;
-		text = $("#ingredient_input").val();
+		text = $("#ingredient_input").val().toLowerCase();
 		if(d) {
 			label = d.label;
 		} else {
-			label = text;
-			if(text[text.length-1]=="s") {
-				this.ingredients.push({text: text, plural: text+"s", label: text, class: "ingredient"});	
+			var concept = this.ingredients.find(function(c) {
+				return (text == c.text)||(text == c.plural);
+			});
+			if(concept === undefined) { // if ingredient not already in this.ingredients
+				// adds to this.ingredients
+				label = text;
+				this.ingredients.push({text: text, plural: text, label: text, class: "ingredient"});
+				this.update_concepts();
 			} else {
-				this.ingredients.push({text: text, plural: text, label: text, class: "ingredient"});	
+				text = concept.text;
+				label = concept.label;
 			}
-			this.update_concepts();
 		}
 		this.autocomplete_ingr.init();
 		this.add_ingredient(text,label,qtt,unit);
