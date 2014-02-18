@@ -3,6 +3,20 @@
 // TODO gérer la vérification AUTOCOMP en global, quelque soit la frappe clavier (plutôt que dans les cas spécifiquement isolés)
 // TODO quand on écrit un mot qui correspond exactement à une annotation -> annotation est effectuée automatiquement (proposition de la version non annotée du mot en plus)
 // TODO quand on focus() / déplace le curseur / revient en arrière -> mettre à jour suggestion (actuellement suggestion uniquement mise à jour sur frappe.
+// TODO BUG accents -> closes autocomplete box
+// TODO BUG copier-coller => casse tout! oncopy, oncut et onpaste?
+/*
+ -> lié au fait que le e.keyCode ou e.charCode ne renvoit pas le caractère, mais la touche
+ => "7" au lieu de "è", d'où le problème de matching entre les mots.
+ IDÉE DE SOLUTIONS:
+ Découper le problème en deux :
+ + l'appui sur la touche de charactère sert à mettre à jour les annotations
+ mais ne propose pas de nouvelle autocomplétions
+ + la proposition de nouvelles autocomplétions se fait après l'événement key
+ => trouver un moyen de lancer un callback après l'événement keyup ?
+
+ */
+// TODO BUG with input text field
 
 // FAIT:
 // gérer la suppression de texte (del ou suppr) et le déplacement des commentaires
@@ -139,6 +153,7 @@ Autocompleter.prototype = {
 		} else {
 			this.current_selection = this.values[this.current_pos];
 		}
+		$(this.text_input_el).trigger("Autocompleter:selection",this.current_selection);
 	},
 
 	autocomp: function() {
@@ -223,8 +238,7 @@ console.log(new_word);
 		var inserted_text = "";
 		var char = "";
 		var test_eq = true;
-		var modifier_key = false;
-
+		var modifier_key = e.ctrlKey;
 
 		var dom_el = e.target;
 		var text = dom_el.value;
@@ -291,6 +305,11 @@ console.log(new_word);
 				pos_offset = 1;
 				break;  
 			default:
+				/*
+				if(e.key !== "MozPrintableKey") {
+					inserted_offset = 1;
+					char = e.key;
+				} else */
 				if(e.keyCode !== 0) { // only add a char if it is not a key modifier...
 					inserted_offset = 1;
 					char = String.fromCharCode(e.keyCode);

@@ -187,6 +187,7 @@ RecipeUI.prototype = {
 			}
 			DOM_Create.element('span',li,{class: 'ingredient '+label,content: text});
 		}
+		$('body').trigger('recipe:ingredient:add',{text:text,label:label,qtt:qtt,unit:unit});
 	},
 	add_text: function(text) {
 		var text_node = document.createTextNode(text);
@@ -269,6 +270,7 @@ RecipeUI.prototype = {
 		return false;
 	},
 	on_event_save: function(e) {
+		$('body').trigger('recipe:save');
 		this.autocomplete_prep.init();
 		this.get_meta();
 		this.parse_prep();

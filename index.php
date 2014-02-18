@@ -47,11 +47,17 @@
 <title>Proto pour tester des idées de visualisation de recette</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-
 <link rel="stylesheet" type="text/css" href="css/main.css">
+<link rel="stylesheet" type="text/css" href="css/samotraces.css">
 <link rel="stylesheet" type="text/css" href="css/jquery.annotatetextarea.css">
 
 <script type="text/javascript" src="javascript/jquery-1.10.2.min.js"></script>
+<!-- -->
+<script type="text/javascript" src="javascript/jquery.mousewheel.js"></script>
+<script type="text/javascript" src="javascript/d3.js"></script>
+<script type="text/javascript" src="javascript/Samotraces.js"></script>
+<script type="text/javascript" src="javascript/main-trace.js"></script>
+
 <script type="text/javascript" src="javascript/recipe.js"></script>
 <script type="text/javascript" src="javascript/jquery.annotatetextarea.js"></script>
 <script type="text/javascript" src="javascript/autocomp.js"></script>
@@ -106,8 +112,29 @@ $(window).load(init);
 </head>
 <body>
 
+	<div style="width:100%;background-color:white;z-index:10;position:fixed;">
+		<div id="trace"></div>
+		<div id="scale"></div>
+	</div>
 
-	<div class="tabbable container">
+
+<!-- Modal -->
+<div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+        <h4 class="modal-title" id="myModalLabel">Modal title</h4>
+      </div>
+      <div class="modal-body">
+        <div id="obsel"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+	<div class="tabbable container" style="position:relative;top:83px;">
 		<ul class="nav nav-tabs">
 <?php
 	echo "\t\t\t<li$tab_list><a href=\"?{$add_url}mode=list\">{$lang['tab-list']}</a></li>";
