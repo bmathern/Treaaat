@@ -1,5 +1,7 @@
 /*
 TODO: dans edit/new -> mettre les ingredients dans un tableau
+TODO: gérer les images: ajouter un formulaire "file" caché. Ajouter un champ pour les descriptions
+TODO: gérer l'envoi de la recette non pas via Ajax, mais via une requête normale HTML submit (le save.php est presque prêt -> c'est la partie JS qu'il faut travailler (avec des champs input hidden).
 */
 // Recipes Class
 function Recipe(recipe) {
@@ -14,6 +16,7 @@ Recipe.prototype = {
 	},
 	ingredients: [],
 	preparation: [],
+	images: [],
 	add_text: function(text) {
 		var last_inst = this.preparation[this.preparation.length-1];
 		if(last_inst && last_inst.type == "text") {
@@ -54,6 +57,7 @@ Recipe.prototype = {
 		this.meta = recipe.meta;
 		this.ingredients = recipe.ingredients;
 		this.preparation = recipe.preparation;
+		this.images = recipe.images || [];
 	}
 }
 
@@ -233,10 +237,11 @@ RecipeUI.prototype = {
 		$('body').on('keypress',"#qtt_input",this.on_event_space.bind(this));
 		$('body').on('keypress',"#unit_input",this.on_event_space.bind(this));
 
-		$('body').on('Autocompleter:autocomplete',"#prep-text",this.on_event_add_annotation.bind(this));
+		$('body').on('Autocompleter:autocomplete',"textarea#prep-text",this.on_event_add_annotation.bind(this));
 		$('body').on('click',"#add_ingredient",this.on_event_add_ingredient.bind(this));
 		$('body').on('submit',"#ingredient_input",this.on_event_add_ingredient.bind(this));
 		$('body').on('click',"#save",this.on_event_save.bind(this));
+		$('body').on('change',"#pictures",this.on_event_add_image.bind(this));
 
 
 		// SAME INGREDIENT IS HIGHLIGHTED
@@ -247,7 +252,7 @@ RecipeUI.prototype = {
 				// Pour chaque ingrédient de la liste, on regarde si
 				// l'ingrédient survolé correspond à cet ingrédient
 				that[type+"s"].forEach(function(concept) {
-					var ing = concept.text;
+					var ing = concept.label;
 					if( $(this).hasClass(ing) ) {
 						$('.'+ing)[method](type+'-hover');
 					}
@@ -324,6 +329,38 @@ console.log("here");
 		e.preventDefault;
 		return false;
 	},
+	on_event_add_image: function(e,d) {
+console.log("on_event_add_image",e);
+		// Adapted from http://www.html5rocks.com/en/tutorials/file/dndfiles/
+		var files = e.target.files;
+
+		// Loop through the FileList and render image files as thumbnails.
+		for (var i = 0, f; f = files[i]; i++) {
+
+			// Only process image files.
+			if (!f.type.match('image.*')) {
+				continue;
+			}
+
+			var reader = new FileReader();
+
+			// Closure to capture the file information.
+			reader.onload = (function(theFile) {
+				return function(e) {
+					// Render thumbnail.
+					var span = document.createElement('span');
+					span.innerHTML = ['<img class="thumb" src="', e.target.result,
+								'" title="', escape(theFile.name), '"/>'].join('');
+					document.getElementById('pictures-list').insertBefore(span, null);
+				};
+			})(f);
+
+			// Read in the image file as a data URL.
+			reader.readAsDataURL(f);
+		}
+		e.preventDefault;
+		return false;
+	},
 	on_event_add_annotation: function(e,d) {
 		if(d.class !== undefined) {
 			this.recipe.add_annotation(d.text,d.class,d.label);
@@ -352,6 +389,8 @@ console.log("here");
 	generate_html: function(html_id,mode_edit) {
 		var recipe_div = document.getElementById(html_id);
 		this.generate_html_title(recipe_div,mode_edit);
+
+		this.generate_html_image(recipe_div,mode_edit);
 
 		var col1 = DOM_Create.element('div',recipe_div,{class: 'col-sm-6'});
 		DOM_Create.element('h3',col1,{content: this.lang.meta});
@@ -401,6 +440,21 @@ console.log("here");
 			$('<h2><input type="text" id="title" name="title" class="form-control input-lg" placeholder="Recipe title..." value="'+title+'"/></h2>').appendTo(parent_el);
 		} else {
 			DOM_Create.element('h2',parent_el,{content: this.recipe.title});
+		}
+	},
+	generate_html_image: function(parent_el,mode_edit) {
+		if(mode_edit) {		
+console.log(this);
+			$('<div id="pictures-list"></div>').appendTo(parent_el);
+			this.recipe.images.forEach(function(img,key) {
+				$('<img src="'+img.url+'"></img>').appendTo(parent_el);
+				$('<input type="text" id="picture-'+key+'" name="picture-'+key+'" class="form-control" placeholder="Image description..." value="'+img.description+'"/>').appendTo(parent_el);
+			});
+			$('<p>Insert an image: <input type="file" id="pictures" name="pictures[]" class="form-control"/></p>').appendTo(parent_el);
+		} else {
+			this.recipe.images.forEach(function(img) {
+				$('<img src="'+img.url+'"></img>').appendTo(parent_el);
+			});
 		}
 	},
 	generate_html_meta: function(parent_el,mode_edit) {
