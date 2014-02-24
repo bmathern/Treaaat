@@ -297,7 +297,6 @@ RecipeUI.prototype = {
 
 	},
 	on_event_add_ingredient: function(e,d) {
-console.log("here");
 		var qtt = $("#qtt_input").val();
 		qtt = qtt==''?undefined:qtt;
 		var unit = $("#unit_input").val();
@@ -312,8 +311,8 @@ console.log("here");
 			});
 			if(concept === undefined) { // if ingredient not already in this.ingredients
 				// adds to this.ingredients
-				label = text;
-				this.ingredients.push({text: text, plural: text, label: text, class: "ingredient"});
+				label = text.replace(/\s|[']/g,"_");;
+				this.ingredients.push({text: text, plural: text, label: label, class: "ingredient"});
 				this.update_concepts();
 			} else {
 				text = concept.text;
@@ -346,12 +345,14 @@ console.log("on_event_add_image",e);
 
 			// Closure to capture the file information.
 			reader.onload = (function(theFile) {
+				var key = 0;
 				return function(e) {
+					$('<li class="media"><div class="pull-left"><img src="'+e.target.result+'" class="media-object thumb"></img></div><div class="media-body"><input type="text" id="picture-'+key+'" name="picture-'+key+'" class="form-control col-xs-8" title="'+escape(theFile.name)+'" placeholder="Image description..." /></div></li>').appendTo("#pictures-list");
 					// Render thumbnail.
-					var span = document.createElement('span');
+/*					var span = document.createElement('span');
 					span.innerHTML = ['<img class="thumb" src="', e.target.result,
 								'" title="', escape(theFile.name), '"/>'].join('');
-					document.getElementById('pictures-list').insertBefore(span, null);
+					document.getElementById('pictures-list').insertBefore(span, null);*/
 				};
 			})(f);
 
@@ -444,12 +445,11 @@ console.log("on_event_add_image",e);
 	},
 	generate_html_image: function(parent_el,mode_edit) {
 		if(mode_edit) {		
-console.log(this);
-			$('<div id="pictures-list"></div>').appendTo(parent_el);
 			this.recipe.images.forEach(function(img,key) {
-				$('<img src="'+img.url+'"></img>').appendTo(parent_el);
-				$('<input type="text" id="picture-'+key+'" name="picture-'+key+'" class="form-control" placeholder="Image description..." value="'+img.description+'"/>').appendTo(parent_el);
+				$('<div><img src="'+img.url+'"></img><input type="text" id="picture-'+key+'" name="picture-'+key+'" class="form-control" placeholder="Image description..." value="'+img.description+'"/></div>').appendTo(parent_el);
 			});
+console.log(this);
+			$('<ul id="pictures-list" class="media-list"></ul>').appendTo(parent_el);
 			$('<p>Insert an image: <input type="file" id="pictures" name="pictures[]" class="form-control"/></p>').appendTo(parent_el);
 		} else {
 			this.recipe.images.forEach(function(img) {
