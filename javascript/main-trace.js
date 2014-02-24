@@ -21,6 +21,8 @@ $(window).load(function() {
 	/* TRACE VISUALISATION */
 	var opt = {
 		x: function(o) {
+//console.log("t:",o.attributes.count,(o.attributes.count - this.window.start)*this.scale_x,this.window.start);
+//console.log("x:",this.calculate_x(o.attributes.count || 0));
 			return this.calculate_x(o.attributes.count || 0);
 		},
 		url: function(o) {
@@ -75,8 +77,8 @@ console.log(o);
 '<div class="panel-heading"><h3 class="panel-title">Attributes</h3></div><div class="panel-body">Panel content</div></div>'
 
 		html.push('<dt>Type</dt><dd>'+o.type+'</dd>');
-		html.push('<dt>Begin</dt><dd>'+o.timestamp+'</dd>');
-		html.push('<dt>Begin - converted</dt><dd>'+Date(o.timestamp)+'</dd>');
+		html.push('<dt>Begin</dt><dd>'+o.get_begin()+'</dd>');
+		html.push('<dt>Begin - converted</dt><dd>'+Date(o.get_begin())+'</dd>');
 		html.push('</dl>');
 		html.push('</div></div>');
 		html.push('<div class="panel panel-default">');
@@ -128,9 +130,12 @@ console.log(o);
 				break;
 			case 'keyup':
 				attr.key = String.fromCharCode(e.keyCode);
+				attr.keyCode = e.keyCode;
 				attr.ctrlKey = e.ctrlKey;
 				attr.altKey = e.altKey;
 				attr.shiftKey = e.shiftKey;
+				attr.selectionStart = e.target.selectionStart;
+				attr.selectionEnd = e.target.selectionEnd;
 				break;
 			case 'Autocompleter:selection':
 			case 'Autocompleter:autocomplete':
