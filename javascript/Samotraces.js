@@ -8,11 +8,15 @@
         window.Samotraces = factory(jQuery);
     }
 }(function ($) {
+	/**
+	 * Library of the Objects of Samotraces
+	 * @namespace Samotraces
+	 */
 	var Samotraces = {};
 	/**
 	 * @property {Boolean} [debug=false]
 	 */
-	Samotraces.debug = false;
+	var debug_mode = false;
 
 	/**
 	 * Library of the Objects of Samotraces
@@ -21,28 +25,408 @@
 	Samotraces.Lib = {};
 	/**
 	 * Library of UI components for Samotraces
-	 * @namespace Samotraces.UIComponents
+	 * @namespace Samotraces.UI
 	 */
-	Samotraces.UIComponents = {};
+	Samotraces.UI = {};
 	/**
 	 * Set of Widgets of Samotraces
-	 * @namespace Samotraces.Widgets
+	 * @namespace Samotraces.UI.Widgets
 	 */
-	Samotraces.Widgets = {};
+	Samotraces.UI.Widgets = {};
 
-	Samotraces.log = function() {
+	Samotraces.log = function log() {
 		if(window.console) {
 			var class_name = (this!==undefined)?[this.constructor.name]:[];
-            window.console.log.apply(console, [ "Samotraces.js" ].concat(class_name.slice.call(arguments)));
+            window.console.log.apply(console, [ "Samotraces.js" ].concat(class_name,[].slice.call(arguments)));
 		}
 	};
-	Samotraces.debug = function() {
-		if(window.console && Samotraces.debug) {
+	Samotraces.debug = function debug() {
+		if(debug_mode && window.console) {
 			var class_name = (this!==undefined)?[this.constructor.name]:[];
-            window.console.log.apply(console, [ "Samotraces.js-debug" ].concat(class_name.slice.call(arguments)));
+            window.console.log.apply(console, [ "Samotraces.js-debug" ].concat(class_name,[].slice.call(arguments)));
 		}
 	};
 	
+
+// first: core/Obsel.js
+/**
+ * Obsel is a shortname for the 
+ * {@link Samotraces.Obsel}
+ * object.
+ * @typedef Obsel
+ * @see Samotraces.Obsel
+ */
+/**
+ * @summary JavaScript Obsel class
+ * @class JavaScript Obsel class
+ * @param {Object} param Parameters 
+ * @param {String} param.id Identifier of the obsel.
+ * @param {Number} param.begin Timestamp of the obsel
+ * @param {Number} param.end Timestamp of the obsel
+ * @param {String} param.type Type of the obsel.
+ * @param {Object} [param.attributes] Attributes of the obsel.
+ * @param {Array<Object>} [param.attributes] Attributes of the obsel.
+ * @param {Array<FIXME>} [param.relations] Relations from this obsel.
+ * @param {Array<FIXME>} [param.inverse_relations] Relations to this obsel.
+ * @param {Array<Obsel>} [param.source_obsels] Source obsels of the obsel.
+ * @param {String} [param.label] Label of the obsel.
+ */
+// *
+Samotraces.Obsel = function Obsel(param) {
+	this._private_check_error(param,'id');
+	this._private_check_error(param,'trace');
+	this._private_check_error(param,'type');
+	this._private_check_default(param,'begin',	Date.now());
+	this._private_check_default(param,'end',		this.begin);
+	this._private_check_default(param,'attributes',	{});
+	this._private_check_undef(param,'relations',	[]); // TODO ajouter rel à l'autre obsel
+	this._private_check_undef(param,'inverse_relations',	[]); // TODO ajouter rel à l'autre obsel
+	this._private_check_undef(param,'source_obsels',		[]);
+	this._private_check_undef(param,'label',		"");
+};
+
+Samotraces.Obsel.prototype = {
+	// ATTRIBUTES
+	attributes: {},
+	relations: [],
+	inverse_relations: [],
+	source_obsels: [],
+	label: "",
+	/**
+	 * If attribute exists, then set the class attribute
+	 * of the same name to the attribute value, otherwise
+	 * set the attribute of the same name with the default
+	 * value.
+	 * @param {Object} param Object from which attribute is copied
+	 * @param {String} attr Name of the attribute
+	 * @param value Default value
+	 * @private
+	 */
+	_private_check_default: function(param,attr,value) {
+		this[attr] = (param[attr] !== undefined)?param[attr]:value;
+	},
+	/**
+	 * If attribute exists, then set the class attribute
+	 * of the same name to the attribute value, otherwise
+	 * nothing happens.
+	 * @param {Object} param Object from which attribute is copied
+	 * @param {String} attr Name of the attribute
+	 * @private
+	 */
+	_private_check_undef: function(param,attr) {
+		if(param[attr] !== undefined) {
+			this[attr] = param[attr];
+		}
+	},
+	/**
+	 * If attribute exists, then set the class attribute
+	 * of the same name to the attribute value, otherwise
+	 * throw an error.
+	 * @param {Object} param Object from which attribute is copied
+	 * @param {String} attr Name of the attribute
+	 * @private
+	 */
+	_private_check_error: function(param,attr) {
+		if(param[attr] !== undefined) {
+			this[attr] = param[attr];
+		} else {
+			throw "Parameter "+attr+" required.";
+		}
+	},
+	// RESOURCE
+	/**
+	 * @summary
+	 * Remove the obsel from its trace.
+	 * @description
+	 * Remove the obsel from its trace.
+	 * The trace will trigger a 
+	 * {@link Samotraces.Trace#trace:remove:obsel} event
+	 */
+	remove: function() {
+		this.get_trace().remove_obsel(this);
+	},
+	/**
+	 * @summary
+	 * Returns the id of the Obsel.
+	 * @returns {String} Id of the obsel.
+	 */
+	get_id: function() { return this.id; },
+	/**
+	 * @summary
+	 * Returns the label of the Obsel.
+	 * @returns {String} Label of the obsel.
+	 */
+	get_label: function() { return this.label; },
+	/**
+	 * @summary
+	 * Sets the label of the Obsel.
+	 * @param {String} Label of the obsel.
+	 */
+	set_label: function(lbl) { this.label = lbl; },
+	/**
+	 * @summary
+	 * Sets the label of the Obsel to the empty string.
+	 */
+	reset_label: function() { this.label = ""; },
+	// OBSEL
+	/**
+	 * @summary
+	 * Returns the trace the Obsel belongs to.
+	 * @returns {Trace} Trace the Obsel belongs to.
+	 */
+	get_trace: 		function() { return this.trace; },
+	/**
+	 * @summary
+	 * Returns the type of the Obsel.
+	 * @returns {String} Type of the obsel.
+	 */
+	get_obsel_type: function() { return this.type;	},
+	/**
+	 * Returns the time when the Obsel starts.
+	 * @returns {Number} Time when the Obsel starts.
+	 */
+	get_begin: 		function() { return this.begin;	},
+	/**
+	 * @summary
+	 * Returns the time when the Obsel ends.
+	 * @returns {Number} Time when the Obsel ends.
+	 */
+	get_end: 		function() { return this.end;	},
+	/**
+	 * @summary
+	 * Sets the type of the Obsel.
+	 * @description
+	 * Sets the type of the Obsel.
+	 * The trace will trigger a 
+	 * {@link Samotraces.Trace#trace:edit:obsel} event
+	 * @params {String} type Type of the obsel.
+	 * @todo TODO not KTBS API compliant
+	 * @deprecated This method might not be supported in the future.
+	 */
+	force_set_obsel_type: function(type) {
+		this.type = type;
+		this.trace.trigger('trace:edit:obsel',this);
+	},
+	/**
+	 * @summary
+	 * Sets the time when the Obsel starts.
+	 * @description
+	 * Sets the time when the Obsel starts.
+	 * The trace will trigger a 
+	 * {@link Samotraces.Trace#trace:edit:obsel} event
+	 * @params {Number} begin Time when the Obsel starts.
+	 * @todo TODO not KTBS API compliant
+	 * @deprecated This method might not be supported in the future.
+	 */
+	force_set_begin: function(begin) {
+		this.begin = begin;
+		this.trace.trigger('trace:edit:obsel',this);
+	},
+	/**
+	 * @summary
+	 * Sets the time when the Obsel ends.
+	 * @description
+	 * Sets the time when the Obsel ends.
+	 * The trace will trigger a 
+	 * {@link Samotraces.Trace#trace:edit:obsel} event
+	 * @params {Number} end Time when the Obsel ends.
+	 * @todo TODO not KTBS API compliant
+	 * @deprecated This method might not be supported in the future.
+	 */
+	force_set_end: 	function(end) {
+		this.end = end;
+		this.trace.trigger('trace:edit:obsel',this);
+	},
+	/**
+	 * @summary
+	 * Returns the source Obsels of the current Obsel.
+	 * @returns {Array<Obsel>} Source Obsels of the current Obsel.
+	 */
+	list_source_obsels: 	function() {
+		if(this.list_source_obsels === undefined) { return []; }
+		return this.source_obsels;
+	},
+	/**
+	 * @summary
+	 * Returns the attribute names of the Obsel.
+	 * @returns {Array<String>} Attribute names of the Obsel.
+	 */
+	list_attribute_types: 	function() {
+		if(this.attributes === undefined) { return []; }
+		var attrs = []
+		for(var key in this.attributes) { attrs.push(key); }
+		return attrs;
+	},
+	/**
+	 * @summary
+	 * Returns the relation types of the Obsel.
+	 * @returns {Array<String>} Relation types of the Obsel.
+	 * @todo TODO Check how it is supposed to work in KTBS API
+	 */
+	list_relation_types: 	function() {
+		if(this.relations === undefined) { return []; }
+		var rels = [];
+		this.relations.forEach(function(r) {
+			var uniqueNames = [];
+    		if($.inArray(r.type, rels) === -1) {
+				rels.push(r.type);
+			}
+		});
+		return rels;
+	},
+	/**
+	 * @summary
+	 * Returns the Obsels related to the current Obsel with the given relation type.
+	 * @param {String} relation_type Relation type.
+	 * @returns {Array<Obsel>} Obsels related to the current Obsel.
+	 * @todo TODO Check how it is supposed to work in KTBS API
+	 */
+	list_related_obsels: 	function(relation_type) {
+		var obss = [];	
+		if(this.relations !== undefined) {
+			this.relations.forEach(function(r) {
+				var uniqueNames = [];
+				if(r.type === relation_type) {
+					obss.push(r.obsel_to);
+				}
+			});
+		}
+		if(this.inverse_relations !== undefined) {
+			this.inverse_relations.forEach(function(r) {
+				var uniqueNames = [];
+				if(r.type === relation_type) {
+					obss.push(r.obsel_to);
+				}
+			});
+		}
+		return obss;
+	},
+	/**
+	 * @summary
+	 * Returns the inverse relation types of the Obsel.
+	 * @returns {Array<String>} Inverse relation types of the Obsel.
+	 * @todo TODO Check how it is supposed to work in KTBS API
+	 */
+	list_inverse_relation_types: function() {
+		if(this.inverse_relations === undefined) { return []; }
+		var rels = [];
+		this.inverse_relations.forEach(function(r) {
+			var uniqueNames = [];
+    		if($.inArray(r.type, rels) === -1) {
+				rels.push(r.type);
+			}
+		});
+		return rels;
+	},
+//	del_attribute_value:	function(attr) {}, // TODO erreur de l'API KTBS?
+	/**
+	 * @summary
+	 * Returns the value of an attribute.
+	 * @param {String} attr Attribute name.
+	 * @returns {Object} Attribute value.
+	 * @todo TODO Check consistency with KTBS API
+	 */
+	get_attribute:	function(attr) {
+		if(this.attributes[attr] === undefined) {
+			throw "Attribute "+attr+" is not defined"; // TODO
+		} else {
+			return this.attributes[attr];
+		}
+	},
+//	del_attribute_value:	function(attr) {}, // TODO erreur de l'API KTBS?
+	/**
+	 * @summary
+	 * Sets the value of an attribute.
+	 * @param {String} attr Attribute name.
+	 * @param {Object} val Attribute value.
+	 * @todo TODO Check consistency with KTBS API
+	 */
+	set_attribute:	function(attr, val) {
+		this.attributes[attr] = val;
+		this.trace.trigger('trace:edit:obsel',this);
+		// TODO envoyer un event pour dier que l'obsel a changé
+	},
+//	del_attribute_value:	function(attr) {}, // TODO erreur de l'API KTBS?
+	/**
+	 * @summary
+	 * Removes the attribute with the given name.
+	 * @description
+	 * Removes the attribute with the given name.
+	 * The trace will trigger a 
+	 * {@link Samotraces.Trace#trace:edit:obsel} event
+	 * @todo TODO Check consistency with KTBS API.
+	 * @param {String} attr Attribute name.
+	 */
+	del_attribute:			function(attr) {
+		delete this.attributes[attr];
+		this.trace.trigger('trace:edit:obsel',this);
+		// TODO envoyer un event pour dier que l'obsel a changé
+	},
+	/**
+	 * @summary
+	 * Adds a relation with an Obsel.
+	 * @description
+	 * NOT YET IMPLEMENTED
+	 * @param {String} rel Relation type.
+	 * @param {Obsel} obs Target Obsel.
+	 * @todo TODO Check consistency with KTBS API
+	 */
+	add_related_obsel:		function(rel,obs) {
+		// TODO
+		throw "method not implemented yet";
+		// TODO envoyer un event pour dier que l'obsel a changé
+	},
+	/**
+	 * @summary
+	 * Removes a relation with an Obsel.
+	 * @description
+	 * NOT YET IMPLEMENTED
+	 * @param {String} rel Relation type.
+	 * @param {Obsel} obs Target Obsel.
+	 * @todo TODO Check consistency with KTBS API
+	 */
+	del_related_obsel:		function(rel,obs) {
+		// TODO
+		throw "method not implemented yet";
+		// TODO envoyer un event pour dier que l'obsel a changé
+	},
+
+	// NOT IN KTBS API
+	/**
+	 * @summary
+	 * Copies the Obsel properties in an Object.
+	 * @description
+	 * Copies the Obsel properties in an Object
+	 * that can be used to create an Obsel with
+	 * {@link Samotraces.Obsel#Obsel} constructor or
+	 * {@link Samotraces.Trace#create_obsel} method.
+	 * @returns {Object} Object that
+	 */
+	to_Object: function() {
+		var obj = {
+			id: this.id,
+			type: this.type,
+			begin: this.begin,
+			end: this.end,
+			attributes: {},
+			// use .slice to copy
+			// TODO is it enough? <- might create bugs
+			relations: this.relations.slice(),
+			inverse_relations: this.inverse_relations.slice(),
+			source_obsels: this.source_obsels.slice(),
+			label: this.label
+		};
+		// copy each attributes
+		for(var attr in this.attributes) {
+			obj.attributes[attr] = this.attributes[attr];
+		}
+		return obj;
+	},
+};
+
+
+
+// last: core/Collecteur.js
 /* TODO:
  * Plutot que d'attacher les Espions à des targetTypes,
  * il vaudrait mieux faire comme dans jQuery: attacher les eventsListeners à des
@@ -130,105 +514,8 @@ Samotraces.Lib.IFrameEspion.prototype = {
 	}
 };
 
-/**
- * @summary Javascript Trace Object.
- * @class Javascript Trace Object.
- * @author Benoît Mathern
- * @constructor
- * @mixes Samotraces.Lib.EventHandler
- * @augments Samotraces.Lib.Trace
- * @description
- * Samotraces.Lib.DemoTrace is a Javascript Trace object.
- * Methods are available to get 
- * the Obsels from the trace, create new Obsels, etc.
- *
- * The trace is initialised empty. Obsels have to be created
- * by using the {@link Samotraces.Lib.DemoTrace#newObsel} method.
- */
-Samotraces.Lib.DemoTrace = function() {
-	// Addint the Observable trait
-	Samotraces.Lib.EventHandler.call(this);
-	var current_trace = this;
 
-	/* Nombre d'obsels dans la trace */
-	this.count = 0; // sert d'ID pour le prochain observé.
-	/* Array d'obsels */
-	this.traceSet = [];
-
-};
-
-Samotraces.Lib.DemoTrace.prototype = {
-	/**
-	 * Creates a new obsel in the trace.
-	 * @param {String} type Type of the new obsel
-	 * @param {Number} timeStamp Timestamp of the new obsel
-	 * @param {Object} attributes Additional attributes of the
-	 *     new obsel.
-	 * @todo update documentation by creating (fake) Trace
-	 * object from which each trace object must inherit.
-	 * This way, all traces have the same documentation.
-	 * @fires Samotraces.Lib.Trace#trace:update
-	 * @fires Samotraces.Lib.Trace#trace:create:obsel
-	 * @todo use KTBS abstract API.
-	 */
-	newObsel: function(type,timeStamp,attributes) {
-		var id = this.count;
-		this.count++;
-		var obs = new Samotraces.Lib.Obsel({id: id,trace: this,begin: timeStamp,type: type,attributes: attributes})
-		this.traceSet.push(obs);
-		this.trigger('trace:update',this.traceSet);
-		this.trigger('trace:create:obsel',obs);
-	},
-
-	/**
-	 * Updates an obsel.
-	 * @param {Obsel} old_obs Obsel to be updated
-	 * @param {Obsel} new_obs Updated version of the obsel
-	 * @fires Samotraces.Lib.Trace#trace:update:obsel
-	 * @todo use KTBS abstract API.
-	 */	
-	updateObsel: function(old_obs,new_obs) {
-		this.removeObsel(old_obs);
-		this.traceSet.push(new_obs);
-		//this.trigger()
-		this.traceSet = this.traceSet.map(function(o) {
-			if(o===old_obs) {
-				return new_obs;
-			} else {
-				return o;
-			}
-		});
-		this.trigger('trace:update:obsel',new_obs);
-	},
-
-	/**
-	 * Remove an obsel from the trace.
-	 * @param {Obsel} obs Obsel to remove from the trace
-	 * @fires Samotraces.Lib.Trace#trace:remove:obsel
-	 * @todo use KTBS abstract API.
-	 */	
-	removeObsel: function(obs) {
-		this.traceSet = this.traceSet.filter(function(o) {
-			return (o===obs)?false:true;
-		});
-		this.trigger('trace:remove:obsel',obs);
-	},
-	
-	/**
-	 * Retrieve an obsel in the trace from its ID.
-	 * @param {String} id ID of the Obsel to retrieve
-	 * @returns {Obsel} Obsel that corresponds to this ID
-	 *     or undefined if the obsel was not found.
-	 * @todo use KTBS abstract API.
-	 */	
-	getObsel: function(id) {
-		return this.traceSet.find(function(o) { return (o.id == id); });
-		console.log('Method KtbsTrace:getObsel() not implemented yet...');
-	},
-
-};
-
-
+// last: core/EventHandler.js
 /**
  * @mixin
  * @description
@@ -241,26 +528,24 @@ Samotraces.Lib.DemoTrace.prototype = {
  * "EventHandler class", one must run the following code in 
  * the constructor:
  * <code>
- * Samotraces.Lib.EventHandler.call(this);
+ * Samotraces.EventHandler.call(this);
  * </code>
  *
  * @property {Object} callbacks
  *     Hash matching callbacks to event_types.
  */
-Samotraces.Lib.EventHandler = (function() {
-	var debug = false;
+Samotraces.EventHandler = (function() {
 	/**
 	 * Triggers all the registred callbacks.
-	 * @memberof Samotraces.Lib.EventBuilder.prototype
+	 * @memberof Samotraces.EventBuilder.prototype
 	 * @param {String} event_type
 	 *     The type of the triggered event.
 	 * @param {Object} object
 	 *     Object sent with the message to the listeners (see 
-	 *     {@link Samotraces.Lib.EventBuilder#addEventListener}).
+	 *     {@link Samotraces.EventBuilder#addEventListener}).
 	 */
 	function trigger(event_type,object) {
-		if(debug) { console.log("debug: EventHandler#"+event_type+" triggered"); }
-		//if(debug) { console.log(this); }
+		Samotraces.debug("EventHandler#"+event_type+" triggered");
 		var e = { type: event_type, data: object };
 		if(this.callbacks[event_type]) {
 			this.callbacks[event_type].map(function(f) { f(e); });
@@ -273,7 +558,7 @@ Samotraces.Lib.EventHandler = (function() {
 	}
 	/**
 	 * Adds a callback for the specified event
-	 * @memberof Samotraces.Lib.EventBuilder.prototype
+	 * @memberof Samotraces.EventBuilder.prototype
 	 * @param {String} event_type
 	 *     The type of the event to listen to.
 	 * @param {Function} callback
@@ -301,10 +586,10 @@ Samotraces.Lib.EventHandler = (function() {
 		this.addEventListener = addEventListener;	
 		/**
 		 * EventConfig is a shortname for the 
-		 * {@link Samotraces.Lib.EventHandler.EventConfig}
+		 * {@link Samotraces.EventHandler.EventConfig}
 		 * object.
 		 * @typedef EventConfig
-		 * @see Samotraces.Lib.EventHandler.EventConfig
+		 * @see Samotraces.EventHandler.EventConfig
 		 */
 		/**
 		 * The EventConfig object is used for configurating the
@@ -312,7 +597,7 @@ Samotraces.Lib.EventHandler = (function() {
 		 * Each attribute name of the EventConfig corresponds
 		 * to a type of event listened to, and each
 		 * value is the function to trigger on this event.
-		 * @typedef Samotraces.Lib.EventHandler.EventConfig
+		 * @typedef Samotraces.EventHandler.EventConfig
 		 * @type {Object.<string, function>}
 		 * @property {function} eventName - Function to trigger on this event.
 		 */
@@ -326,15 +611,17 @@ Samotraces.Lib.EventHandler = (function() {
 
 
 
+
+// last: core/Ktbs.js
 /**
  * @summary Javascript Ktbs Object that is bound to a KTBS. 
  * @class Javascript Ktbs Object that is bound to a KTBS. 
  * @author Benoît Mathern
  * @requires jQuery framework (see <a href="http://jquery.com">jquery.com</a>)
  * @constructor
- * @augments Samotraces.Lib.EventHandler
+ * @augments Samotraces.EventHandler
  * @description
- * Samotraces.Lib.Ktbs is a Javascript KTBS object that
+ * Samotraces.Ktbs is a Javascript KTBS object that
  * is bound to a KTBS. This Object can be seen as an API to
  * the KTBS. Methods are available to get the list of bases
  * available in the KTBS. Access a specific base, etc.
@@ -349,21 +636,21 @@ Samotraces.Lib.EventHandler = (function() {
  *
  * @param {String}	url	Url of the KTBS to load.
  */
-Samotraces.Lib.Ktbs = function Ktbs(uri) {
+Samotraces.Ktbs = function Ktbs(uri) {
 //	this.url = url;
 //	this.bases = [];
 //	this.refresh();
 
 
 	// KTBS is a Resource
-	Samotraces.Lib.Ktbs.Resource.call(this,uri,uri,"");
+	Samotraces.Ktbs.Resource.call(this,uri,uri,"");
 	this.bases = [];
 	this.builtin_methods = [];
 	this.force_state_refresh();
 
 };
 
-Samotraces.Lib.Ktbs.prototype = {
+Samotraces.Ktbs.prototype = {
 /////////// OFFICIAL API
 	list_builtin_methods: function() {},
 	get_builtin_method: function() {},
@@ -374,7 +661,7 @@ Samotraces.Lib.Ktbs.prototype = {
 	 * @param id {String} URI of the base
 	 */
 	get_base: function(id) {
-		return new Samotraces.Lib.Ktbs.Base(id,this.uri+id);
+		return new Samotraces.Ktbs.Base(id,this.uri+id);
 	},
 	/**
 	 * @param id {String} URI of the base (optional)
@@ -409,7 +696,7 @@ Samotraces.Lib.Ktbs.prototype = {
 };
 
 /* MIXIN */
-Samotraces.Lib.Ktbs.Resource = (function(id,uri,label) {
+Samotraces.Ktbs.Resource = (function(id,uri,label) {
 	
 	function get_type() { return this.constructor.name; }
 
@@ -474,7 +761,7 @@ Samotraces.Lib.Ktbs.Resource = (function(id,uri,label) {
 
 	return function(id,uri) {
 		// a Resource is an EventHandler
-		Samotraces.Lib.EventHandler.call(this);
+		Samotraces.EventHandler.call(this);
 		// DOCUMENTED ABOVE
 		// ATTRIBUTES
 		this.id = id;
@@ -504,9 +791,9 @@ Samotraces.Lib.Ktbs.Resource = (function(id,uri,label) {
  * @author Benoît Mathern
  * @requires jQuery framework (see <a href="http://jquery.com">jquery.com</a>)
  * @constructor
- * @augments Samotraces.Lib.EventHandler
+ * @augments Samotraces.EventHandler
  * @description
- * Samotraces.Lib.KtbsBase is a Javascript KTBS base
+ * Samotraces.KtbsBase is a Javascript KTBS base
  * object that is bound to a KTBS. This Object can be seen
  * as an API to the KTBS. Methods are available to get the 
  * list of traces available in the KTBS base. Access a 
@@ -522,14 +809,14 @@ Samotraces.Lib.Ktbs.Resource = (function(id,uri,label) {
  *
  * @param {String}	url	Url of the KTBS to load.
  */
-Samotraces.Lib.Ktbs.Base = function Base(id,uri) {
+Samotraces.Ktbs.Base = function Base(id,uri) {
 	// KTBS.Base is a Resource
-	Samotraces.Lib.Ktbs.Resource.call(this,id,uri,"");
+	Samotraces.Ktbs.Resource.call(this,id,uri,"");
 	this.traces = [];
 	this.force_state_refresh();
 };
 
-Samotraces.Lib.Ktbs.Base.prototype = {
+Samotraces.Ktbs.Base.prototype = {
 	get: function(id) {},
 	list_traces: function() {
 		return this.traces;
@@ -573,7 +860,7 @@ Samotraces.Lib.Ktbs.Base.prototype = {
 	},
 /////////// ADDED / API
 	get_trace: function(id) {
-		return new Samotraces.Lib.Ktbs.Trace(id,this.uri+id);
+		return new Samotraces.Ktbs.Trace(id,this.uri+id);
 	},
 ////////////
 };
@@ -583,9 +870,9 @@ Samotraces.Lib.Ktbs.Base.prototype = {
  * @author Benoît Mathern
  * @requires jQuery framework (see <a href="http://jquery.com">jquery.com</a>)
  * @constructor
- * @mixes Samotraces.Lib.EventHandler
+ * @mixes Samotraces.EventHandler
  * @description
- * Samotraces.Lib.KtbsTrace is a Javascript Trace object
+ * Samotraces.KtbsTrace is a Javascript Trace object
  * that is bound to a KTBS trace. This Object can be seen as
  * an API to the KTBS trace. Methods are available to get 
  * the Obsels from the KTBS trace, create new Obsels, etc.
@@ -604,9 +891,9 @@ Samotraces.Lib.Ktbs.Base.prototype = {
  *
  * @param {String}	url	Url of the KTBS trace to load.
  */
-Samotraces.Lib.Ktbs.Trace = function Trace(id,uri) {
+Samotraces.Ktbs.Trace = function Trace(id,uri) {
 	// KTBS.Base is a Resource
-	Samotraces.Lib.Ktbs.Resource.call(this,id,uri,"");
+	Samotraces.Ktbs.Resource.call(this,id,uri,"");
 
 	this.default_subject = "";
 	this.model_uri = "";
@@ -618,7 +905,10 @@ Samotraces.Lib.Ktbs.Trace = function Trace(id,uri) {
 	this.force_state_refresh();
 };
 
-Samotraces.Lib.Ktbs.Trace.prototype = {
+//Samotraces.Ktbs.Trace.prototype = Samotraces.LocalTrace.prototype;
+
+
+Samotraces.Ktbs.Trace.prototype = {
 /////////// OFFICIAL API
 	get_base: function() { return this.base_uri; },
 	get_model: function() { return this.model_uri; },
@@ -671,18 +961,20 @@ Samotraces.Lib.Ktbs.Trace.prototype = {
 		var id, label, type, begin, end, attributes, obs;
 		var new_obsel_loaded = false;
 		data.obsels.forEach(function(el,key) {
-			id = el['@id'];
-			label = el['http://www.w3.org/2000/01/rdf-schema#label'] || undefined;
-			type = el['@type'];
-			begin = el['begin'];
-			end = el['end'];
-			attributes = el;
-			delete(attributes['@id']);
-			delete(attributes['http://www.w3.org/2000/01/rdf-schema#label']);
-			delete(attributes['@type']);
-			delete(attributes['begin']);
-			delete(attributes['end']);
-			obs = new Samotraces.Lib.Ktbs.Obsel(id,this.uri+id,label,this.id,type,begin,end,attributes);
+			var attr = {};
+			attr.id = el['@id'];
+			attr.trace = this;
+			attr.label = el['http://www.w3.org/2000/01/rdf-schema#label'] || undefined;
+			attr.type = el['@type'];
+			attr.begin = el['begin'];
+			attr.end = el['end'];
+			attr.attributes = el;
+			delete(attr.attributes['@id']);
+			delete(attr.attributes['http://www.w3.org/2000/01/rdf-schema#label']);
+			delete(attr.attributes['@type']);
+			delete(attr.attributes['begin']);
+			delete(attr.attributes['end']);
+			obs = new Samotraces.Ktbs.Obsel(attr);
 			
 			if(! this._check_obsel_loaded_(obs)) {
 				new_obsel_loaded = true;
@@ -711,7 +1003,7 @@ Samotraces.Lib.Ktbs.Trace.prototype = {
 // */
 
 /*
-Samotraces.Lib.Ktbs.StoredTrace = function() {
+Samotraces.Ktbs.StoredTrace = function() {
 	set_model: function(model) {},
 	set_origin: function(origin) {},
 	get_default_subject: function() {},
@@ -719,7 +1011,7 @@ Samotraces.Lib.Ktbs.StoredTrace = function() {
 	create_obsel: function(id, type, begin, end, subject, attributes, relations, inverse_relations, source_obsels, label) {}
 }
 
-Samotraces.Lib.Ktbs.ComputedTrace = function() {
+Samotraces.Ktbs.ComputedTrace = function() {
 	set_method: function(method) {},
 	list_parameters: function(include_inherited) {},
 	get_parameter: function(key) {},
@@ -728,36 +1020,33 @@ Samotraces.Lib.Ktbs.ComputedTrace = function() {
 }
 */
 
-Samotraces.Lib.Ktbs.Obsel = function Obsel(id,uri,label,trace,type,begin,end,attributes,relations) {
+/**
+ * @augments Samotraces.Obsel
+ * @todo TODO update set_methods
+ * -> sync with KTBS instead of local change
+ */
+Samotraces.Ktbs.Obsel = function Obsel(param) {
 	// KTBS.Base is a Resource
-	Samotraces.Lib.Ktbs.Resource.call(this,id,uri,label || "");
-	this.trace = trace;
-	this.type = type;
-	this.begin = begin;
-	this.end = end;
-	this.attributes = attributes || {};
-	this.relations = relations || {};
+	Samotraces.Ktbs.Resource.call(this,param.id,param.uri,param.label || "");
+
+//	this._private_check_error(param,'id');
+	this._private_check_error(param,'trace');
+	this._private_check_error(param,'type');
+	this._private_check_default(param,'begin',	Date.now());
+	this._private_check_default(param,'end',		this.begin);
+	this._private_check_default(param,'attributes',	{});
+	this._private_check_undef(param,'relations',	[]); // TODO ajouter rel à l'autre obsel
+	this._private_check_undef(param,'inverse_relations',	[]); // TODO ajouter rel à l'autre obsel
+	this._private_check_undef(param,'source_obsels',		[]);
+//	this._private_check_undef(param,'label',		"");
 }
 
-Samotraces.Lib.Ktbs.Obsel.prototype = {
-	get_trace: function() { return this.trace; },
-	get_obsel_type: function() { return this.type; },
-	get_begin: function() { return this.begin; },
-	get_end: function() { return this.end; },
-	list_source_obsels: function() {},
-	list_attribute_types: function() {},
-	list_relation_types: function() {},
-	list_related_obsels: function() {},
-	list_inverse_relation_types: function() {},
-	get_attribute_value: function() {},
-	set_attribute_value: function() {},
-	gel_attribute_value: function() {},
-	add_related_obsel: function() {},
-	del_related_obsel: function() {}
-};
+Samotraces.Ktbs.Obsel.prototype = Samotraces.Obsel.prototype;
 
 
 
+
+// last: core/Ktbs4jsTrace.js
 /**
  * @summary Javascript Trace Object that is bound to a KTBS trace. 
  * @class Javascript Trace Object that is bound to a KTBS trace. 
@@ -796,6 +1085,8 @@ Samotraces.Lib.Ktbs4jsTrace.prototype = {
 };
 
 
+
+// last: core/KtbsBogueTrace.js
 /**
  * @summary JavaScript Trace class connected to a kTBS
  * @class JavaScript Trace class connected to a kTBS
@@ -938,257 +1229,180 @@ Samotraces.Lib.KtbsBogueTrace.prototype = {
 	},
 };
 
+
+// last: core/LocalTrace.js
 /**
  * @summary Javascript Trace Object.
  * @class Javascript Trace Object.
  * @author Benoît Mathern
  * @constructor
- * @mixes Samotraces.Lib.EventHandler
- * @augments Samotraces.Lib.Trace
+ * @mixes Samotraces.EventHandler
+ * @augments Samotraces.Trace
  * @description
- * Samotraces.Lib.MemoryTrace is a Javascript Trace object.
+ * Samotraces.DemoTrace is a Javascript Trace object.
  * Methods are available to get 
  * the Obsels from the trace, create new Obsels, etc.
  *
  * The trace is initialised empty. Obsels have to be created
- * by using the {@link Samotraces.Lib.DemoTrace#newObsel} method.
+ * by using the {@link Samotraces.DemoTrace#newObsel} method.
  */
-Samotraces.Lib.MemoryTrace = function() {
+Samotraces.LocalTrace = function(source_traces) {
 	// Addint the Observable trait
-	Samotraces.Lib.EventHandler.call(this);
-	var current_trace = this;
+	Samotraces.EventHandler.call(this);
 
 	/* Nombre d'obsels dans la trace */
 	this.count = 0; // sert d'ID pour le prochain observé.
 	/* Array d'obsels */
-	this.traceSet = [];
+	this.obsel_list = [];
+	this.source_traces = (source_traces!==undefined)?source_traces:[];
+	this.source_traces.forEach(function(t) {
+		t.transformed_traces.push(this);
+	});
+	this.transformed_traces = [];
 
 };
 
-Samotraces.Lib.MemoryTrace.prototype = {
+Samotraces.LocalTrace.prototype = {
+
+	get_label: function() { return this.label; },
+	set_label: function(lbl) {
+		this.label = lbl;
+		this.trigger('trace:edit:meta');
+	},
+	reset_label: function() {
+		this.label = "";
+		this.trigger('trace:edit:meta');
+	},
+
+	get_model: function() { return this.model; },
+	get_origin: function() { return this.origin; },
+	list_source_traces: function() { return this.source_traces; },
+	list_transformed_traces: function() { return this.transformed_traces; },
+	list_obsels: function(begin,end,reverse) {
+		// TODO reverse is ignored.
+		return this.obsel_list.filter(function(o) {
+			if(end && o.get_begin() > end) { return false; }
+			if(begin && o.get_end() < begin) { return false; }
+			return true;
+		});
+	},
+
 	/**
-	 * Creates a new obsel in the trace.
-	 * @param {String} type Type of the new obsel
-	 * @param {Number} timeStamp Timestamp of the new obsel
-	 * @param {Object} attributes Additional attributes of the
-	 *     new obsel.
-	 * @todo update documentation by creating (fake) Trace
-	 * object from which each trace object must inherit.
-	 * This way, all traces have the same documentation.
-	 * @fires Samotraces.Lib.Trace#trace:update
+	 * Retrieve an obsel in the trace from its ID.
+	 * @param {String} id ID of the Obsel to retrieve
+	 * @returns {Obsel} Obsel that corresponds to this ID
+	 *     or undefined if the obsel was not found.
 	 * @todo use KTBS abstract API.
-	 */
-	newObsel: function(type,timeStamp,attributes) {
-		var id = this.count;
+	 */	
+	get_obsel: function(id) {
+		return this.obsel_list.find(function(o) {
+			return (o.get_id() == id);
+		});
+	},
+	set_model: function(model) {
+		this.model = model;
+		this.trigger('trace:edit:meta');
+	},
+	set_origin: function(origin) {
+		this.origin = origin;
+		this.trigger('trace:edit:meta');
+	},
+	get_default_subject: function() { return this.subject;},
+	set_default_subject: function(subject) {
+		this.subject = subject;
+		this.trigger('trace:edit:meta');
+	},
+
+	create_obsel: function(obsel_params) {
+		obsel_params.id = this.count;
 		this.count++;
-		this.traceSet.push(new Samotraces.Lib.Obsel(id,timeStamp,type,attributes));
-		this.trigger('trace:update',this.traceSet);
+		obsel_params.trace = this;
+		var obs = new Samotraces.Obsel(obsel_params);
+		this.obsel_list.push(obs);
+		this.trigger('trace:create:obsel',obs);
 	},
-
-	updateObsel: function(old_obs,new_obs) {
-		console.log('Method KtbsTrace:updateObsel() not implemented yet...');
-//		this.traceSet.erase(old_obs);
-//		new_obs.id = old_obs.id; // check that id stay consistent
-//		this.traceSet.push(new_obs);
-//		this.notify('updateObsel',{old_obs: old_obs, new_obs: new_obs});
-//		return new_obs;
+	remove_obsel: function(obs) {
+		this.obsel_list = this.obsel_list.filter(function(o) {
+			return (o===obs)?false:true;
+		});
+		this.trigger('trace:remove:obsel',obs);
 	},
-	
-	removeObsel: function(obs) {
-		console.log('Method KtbsTrace:removeObsel() not implemented yet...');
-//		this.traceSet.erase(old_obs);
-//		this.notify('removeObsel',obs);
+	/**
+	 * @todo TODO document this method
+	 */
+	transform: function(transformation_method,parameters) {
+		return transformation_method(this,parameters);
 	},
-	
-	getObsel: function(id) {
-		console.log('Method KtbsTrace:getObsel() not implemented yet...');
+	/**
+	 * @todo TODO document this method
+	 */
+	transformations: {
+		duplicate: function(trace) {
+			// TODO better deep copy
+			var transformed_trace = new Samotraces.LocalTrace([trace]);
+			trace.list_obsels().forEach(function(o) {
+				transformed_trace.create_obsel(o.to_Object());
+			});
+			trace.addEventListener('trace:create:obsel',function(e) {
+				var o = e.data;
+				transformed_trace.create_obsel(o.to_Object());
+			});
+			return transformed_trace;
+		},
+		filter_obsel_type: function(trace,opt) {
+			// TODO: implement
+			// TODO better deep copy
+console.log(opt);
+			var transformed_trace = new Samotraces.LocalTrace([trace]);
+			trace.list_obsels().forEach(function(o) {
+				if(opt.types.some(function(type) {return type === o.get_obsel_type();})) {
+					if(opt.mode === "keep") {
+						transformed_trace.create_obsel(o.to_Object());
+					}
+				} else  {
+					if(opt.mode === "remove") {
+						transformed_trace.create_obsel(o.to_Object());
+					}
+				}
+			});
+			trace.addEventListener('trace:create:obsel',function(e) {
+				var o = e.data;
+				if(opt.types.some(function(type) {return type === o.get_obsel_type();})) {
+					if(opt.mode === "keep") {
+						transformed_trace.create_obsel(o.to_Object());
+					}
+				} else  {
+					if(opt.mode === "remove") {
+						transformed_trace.create_obsel(o.to_Object());
+					}
+				}
+			});
+			return transformed_trace;
+		},
 	},
-
 };
 
 
-/**
- * Obsel is a shortname for the 
- * {@link Samotraces.Lib.Obsel}
- * object.
- * @typedef Obsel
- * @see Samotraces.Lib.Obsel
- */
-/**
- * @summary JavaScript Obsel class
- * @class JavaScript Obsel class
- * @param {String} id Identifier of the obsel.
- * @param {Number} timestamp Timestamp of the obsel
- * @param {String} type Type of the obsel.
- * @param {Object} attributes Optional attributes of the obsel.
- */
-// *
-Samotraces.Lib.Obsel = (function() {
-	function check_default(param,attr,value) {
-		this[attr] = (param[attr] !== undefined)?param[attr]:value;
-	}
-	function check_undef(param,attr) {
-		if(param[attr] !== undefined) {
-			this[attr] = param[attr];
-		}
-	}
-	function check_error(param,attr) {
-		if(param[attr] !== undefined) {
-			this[attr] = param[attr];
-		} else {
-			throw "Parameter "+attr+" required.";
-		}
-	}
-	return function Obsel(param) {
-		check_error.call(this,param,'id');
-		check_error.call(this,param,'trace');
-		check_error.call(this,param,'type');
-		check_default.call(this,param,'begin',	Date.now());
-		check_default.call(this,param,'end',		this.begin);
-		check_default.call(this,param,'attributes',	{});
-		check_undef.call(this,param,'relations',	[]); // TODO ajouter rel à l'autre obsel
-		check_undef.call(this,param,'inverse_relations',	[]); // TODO ajouter rel à l'autre obsel
-		check_undef.call(this,param,'source_obsels',		[]);
-		check_undef.call(this,param,'label',		[]);
-	}
-})(); 
-//*/
-/*
-Samotraces.Lib.Obsel = function Obsel(param) {
-	function check_default(param,attr,value) {
-		this[attr] = (param[attr] !== undefined)?param[attr]:value;
-	}
-	function check_undef(param,attr) {
-		if(param[attr] !== undefined) {
-			this[attr] = param[attr];
-		}
-	}
-	function check_error(param,attr) {
-		if(param[attr] !== undefined) {
-			this[attr] = param[attr];
-		} else {
-			throw "Parameter "+attr+" required.";
-		}
-	}
-		check_error.call(this,param,'id');
-		check_error.call(this,param,'trace');
-		check_error.call(this,param,'type');
-		check_default.call(this,param,'begin',	Date.now());
-		check_default.call(this,param,'end',		this.begin);
-		check_default.call(this,param,'attributes',	{});
-		check_undef.call(this,param,'relations',	[]); // TODO ajouter rel à l'autre obsel
-		check_undef.call(this,param,'inverse_relations',	[]); // TODO ajouter rel à l'autre obsel
-		check_undef.call(this,param,'source_obsels',		[]);
-		check_undef.call(this,param,'label',		[]);
 
-};*/
-
-Samotraces.Lib.Obsel.prototype = {
-	get_trace: 		function() { return this.trace; },
-	get_obsel_type: function() { return this.type;	},
-	get_begin: 		function() { return this.begin;	},
-	get_end: 		function() { return this.end;	},
-	list_source_obsels: 	function() {
-		if(this.list_source_obsels === undefined) { return []; }
-		return this.source_obsels;
-	},
-	list_attribute_types: 	function() {
-		if(this.attributes === undefined) { return []; }
-		var attrs = []
-		for(var key in this.attributes) { attrs.push(key); }
-		return attrs;
-	},
-	list_relation_types: 	function() {
-		if(this.relations === undefined) { return []; }
-		var rels = [];
-		this.relations.forEach(function(r) {
-			var uniqueNames = [];
-    		if($.inArray(r.type, rels) === -1) {
-				rels.push(r.type);
-			}
-		});
-		return rels;
-	},
-	list_related_obsels: 	function(relation_type) {
-		var obss = [];	
-		if(this.relations !== undefined) {
-			this.relations.forEach(function(r) {
-				var uniqueNames = [];
-				if(r.type === relation_type) {
-					obss.push(r.obsel_to);
-				}
-			});
-		}
-		if(this.inverse_relations !== undefined) {
-			this.inverse_relations.forEach(function(r) {
-				var uniqueNames = [];
-				if(r.type === relation_type) {
-					obss.push(r.obsel_to);
-				}
-			});
-		}
-		return obss;
-	},
-	list_inverse_relation_types: function() {
-		if(this.inverse_relations === undefined) { return []; }
-		var rels = [];
-		this.inverse_relations.forEach(function(r) {
-			var uniqueNames = [];
-    		if($.inArray(r.type, rels) === -1) {
-				rels.push(r.type);
-			}
-		});
-		return rels;
-	},
-//	del_attribute_value:	function(attr) {}, // TODO erreur de l'API KTBS?
-	get_attribute:	function(attr) {
-		if(this.attributes[attr] === undefined) {
-			throw "Attribute "+attr+" is not defined"; // TODO
-		} else {
-			return this.attributes[attr];
-		}
-	},
-//	del_attribute_value:	function(attr) {}, // TODO erreur de l'API KTBS?
-	set_attribute:	function(attr, val) {
-		this.attributes[attr] = val;
-		// TODO envoyer un event pour dier que l'obsel a changé
-	},
-//	del_attribute_value:	function(attr) {}, // TODO erreur de l'API KTBS?
-	del_attribute:			function(attr) {
-		delete this.attributes[attr];
-		// TODO envoyer un event pour dier que l'obsel a changé
-	},
-	add_related_obsel:		function(rel,obs) {
-		// TODO
-		throw "method not implemented yet";
-		// TODO envoyer un event pour dier que l'obsel a changé
-	},
-	del_related_obsel:		function(rel,obs) {
-		// TODO
-		throw "method not implemented yet";
-		// TODO envoyer un event pour dier que l'obsel a changé
-	}
-};
-
-
+// last: core/Selector.js
 /**
  * Selector is a shortname for the 
- * {@link Samotraces.Lib.Selector}
+ * {@link Samotraces.Selector}
  * object.
  * @typedef Selector
- * @see Samotraces.Lib.Selector
+ * @see Samotraces.Selector
  */
 /**
  * @summary Object that stores a selection of objects
  * @class Object that stores a selection of objects
  * @author Benoît Mathern
  * @constructor
- * @augments Samotraces.Lib.EventHandler
- * @fires Samotraces.Lib.Selector#selection:add
- * @fires Samotraces.Lib.Selector#selection:remove
- * @fires Samotraces.Lib.Selector#selection:empty
+ * @augments Samotraces.EventHandler
+ * @fires Samotraces.Selector#selection:add
+ * @fires Samotraces.Selector#selection:remove
+ * @fires Samotraces.Selector#selection:empty
  * @description
- * The {@link Samotraces.Lib.Selector|Selector} object
+ * The {@link Samotraces.Selector|Selector} object
  * is a Javascript object that stores a selection of Objects.
  * This Object stores Objects that are selected and informs 
  * widgets or other objects (via the 
@@ -1196,13 +1410,13 @@ Samotraces.Lib.Obsel.prototype = {
  * When first instanciated, the selection is empty.
  *
  * In order to select an object, the 
- * {@link Samotraces.Lib.Selector#select|Selector#select()} 
+ * {@link Samotraces.Selector#select|Selector#select()} 
  * method has to be called.
  * Similarly, in order to unselect an object, the 
- * {@link Samotraces.Lib.Selector#unselect|Selector#unselect()} 
+ * {@link Samotraces.Selector#unselect|Selector#unselect()} 
  * method has to be called.
  * The whole selection can be emptied at once with the 
- * {@link Samotraces.Lib.Selector#empty|Selector#empty()}
+ * {@link Samotraces.Selector#empty|Selector#empty()}
  * method.
  * 
  * @param {string} type - A string describing the type of
@@ -1216,20 +1430,23 @@ Samotraces.Lib.Obsel.prototype = {
  * @param {EventConfig}	[events]
  *     Events to listen to and their corresponding callbacks.
  */
-Samotraces.Lib.Selector = function(type,selection_mode,events) {
+Samotraces.Selector = function(type,selection_mode,events) {
 	// Adding the Observable trait
-	Samotraces.Lib.EventHandler.call(this,events);
+	Samotraces.EventHandler.call(this,events);
 	this.mode = selection_mode || 'single'; // other option is 'multiple'
 	this.type = type;
 	this.selection = [];
+	// TODO: ajouter eventListener sur Trace si type = obsel
+	// -> Quand "trace:remove:obsel" -> vérifie si un obsel a
+	// été supprimé de la sélection.
 };
 
-Samotraces.Lib.Selector.prototype = {
+Samotraces.Selector.prototype = {
 	/**
      * Method to call to select an Object.
      * @param {Object} object
      *     Object that is added to the selection
-	 * @fires Samotraces.Lib.Selector#selection:add
+	 * @fires Samotraces.Selector#selection:add
      */
 	select: function(object) {
 		if(this.mode === 'multiple') {
@@ -1239,7 +1456,7 @@ Samotraces.Lib.Selector.prototype = {
 		}
 		/**
 		 * Object selected event.
-		 * @event Samotraces.Lib.Selector#selection:add
+		 * @event Samotraces.Selector#selection:add
 		 * @type {object}
 		 * @property {String} type - The type of the event (= "selection:add").
 		 * @property {Object} data - The selected object.
@@ -1248,13 +1465,13 @@ Samotraces.Lib.Selector.prototype = {
 	},
 	/**
      * Method to empty the current selection.
-	 * @fires Samotraces.Lib.Selector#selection:empty
+	 * @fires Samotraces.Selector#selection:empty
      */
 	empty: function() {
 		this.selection = [];
 		/**
 		 * Object unselected event.
-		 * @event Samotraces.Lib.Selector#selection:empty
+		 * @event Samotraces.Selector#selection:empty
 		 * @type {object}
 		 * @property {String} type - The type of the event (= "selection:empty").
 		 */
@@ -1277,7 +1494,7 @@ Samotraces.Lib.Selector.prototype = {
 	},
 	/**
      * Method to call to remove an Object from the selection.
-	 * @fires Samotraces.Lib.Selector#selection:remove
+	 * @fires Samotraces.Selector#selection:remove
      */
 	unselect: function(object) {
 		if(this.mode === 'multiple') {
@@ -1296,7 +1513,7 @@ Samotraces.Lib.Selector.prototype = {
 		}
 		/**
 		 * Object unselected event.
-		 * @event Samotraces.Lib.Selector#selection:remove
+		 * @event Samotraces.Selector#selection:remove
 		 * @type {object}
 		 * @property {String} type - The type of the event (= "selection:remove").
 		 */
@@ -1323,27 +1540,29 @@ Samotraces.Lib.Selector.prototype = {
 	}
 };
 
+
+// last: core/TimeWindow.js
 /**
  * TimeWindow is a shortname for the 
- * {@link Samotraces.Lib.TimeWindow}
+ * {@link Samotraces.TimeWindow}
  * object.
  * @typedef TimeWindow
- * @see Samotraces.Lib.TimeWindow
+ * @see Samotraces.TimeWindow
  */
 /**
  * @summary Object that stores the current time window
  * @class Object that stores the current time window
  * @author Benoît Mathern
  * @constructor
- * @augments Samotraces.Lib.EventHandler
+ * @augments Samotraces.EventHandler
  * @description
- * The {@link Samotraces.Lib.TimeWindow} object is a Javascript Object
+ * The {@link Samotraces.TimeWindow} object is a Javascript Object
  * that stores the current time window.
  * This Object stores a time window and informs widgets or other
  * objects when the time window changes via the 
- * {@link Samotraces.Lib.TimeWindow#event:tw:update|tw:update}
+ * {@link Samotraces.TimeWindow#event:tw:update|tw:update}
  * event.
- * A {@link Samotraces.Lib.TimeWindow|TimeWindow} can be defined in two ways:
+ * A {@link Samotraces.TimeWindow|TimeWindow} can be defined in two ways:
  *
  * 1.  by defining a lower and upper bound
  * 2.  by defining a timer and a width.
@@ -1355,14 +1574,14 @@ Samotraces.Lib.Selector.prototype = {
  *     be defined if using timer and width definition.
  * @param {Number} opt.start Starting time of the time window (lower bound).
  * @param {Number} opt.end Ending time of the time window (upper bound).
- * @param {Samotraces.Lib.Timer} opt.timer Timer object, which time
+ * @param {Samotraces.Timer} opt.timer Timer object, which time
  *     is used to define the middle of the current time window.
  * @param {Number} opt.width Width of the time window.
  *
  */
-Samotraces.Lib.TimeWindow = function(opt) {
+Samotraces.TimeWindow = function TimeWindow(opt) {
 	// Adding the Observable trait
-	Samotraces.Lib.EventHandler.call(this);
+	Samotraces.EventHandler.call(this);
 	if(opt.start !== undefined && opt.end  !== undefined) {
 		this.start = opt.start;
 		this.end = opt.end;
@@ -1370,24 +1589,29 @@ Samotraces.Lib.TimeWindow = function(opt) {
 	} else if (opt.timer !== undefined && opt.width  !== undefined) {
 		this.set_width(opt.width,opt.timer.time)
 		this.timer = opt.timer;
-		this.timer.addEventListener('timer:update',this.updateTime.bind(this));
-		this.timer.addEventListener('timer:play:update',this.updateTime.bind(this));
+		this.timer.addEventListener('timer:update',this._private_updateTime.bind(this));
+		this.timer.addEventListener('timer:play:update',this._private_updateTime.bind(this));
 	} else {
-		throw('Samotraces.Lib.TimeWindow error. Arguments could not be parsed.');
+		throw('Samotraces.TimeWindow error. Arguments could not be parsed.');
 	}
 };
 
-Samotraces.Lib.TimeWindow.prototype = {
+Samotraces.TimeWindow.prototype = {
 	__calculate_width: function() {
 		this.width = this.end - this.start;
 	},
-	updateTime: function(e) {
+	_private_updateTime: function(e) {
 		var time = e.data;
-		this.translate(time - this.start + this.width/2);
+		var delta = time - (this.start + this.width/2);
+
+		this.start = time - this.width/2
+		this.end = time + this.width/2
+		this.trigger('tw:translate',delta);
+
 //		this.set_width(this.width,time);
 	},
 	/** 
-	 * @fires Samotraces.Lib.TimeWindow#tw:update
+	 * @fires Samotraces.TimeWindow#tw:update
 	 * @todo Handle correctly the bind to the timer (if this.timer) 
 	 */
 	set_start: function(time) {
@@ -1396,7 +1620,7 @@ Samotraces.Lib.TimeWindow.prototype = {
 			this.__calculate_width();
 			/**
 			 * Time window change event.
-			 * @event Samotraces.Lib.TimeWindow#tw:update
+			 * @event Samotraces.TimeWindow#tw:update
 			 * @type {object}
 			 * @property {String} type - The type of the event (= "tw:update").
 			 */
@@ -1404,7 +1628,7 @@ Samotraces.Lib.TimeWindow.prototype = {
 		}
 	},
 	/**
-	 * @fires Samotraces.Lib.TimeWindow#tw:update
+	 * @fires Samotraces.TimeWindow#tw:update
 	 * @todo Handle correctly the bind to the timer (if this.timer) 
 	 */
 	set_end: function(time) {
@@ -1418,7 +1642,7 @@ Samotraces.Lib.TimeWindow.prototype = {
 		return this.width;
 	},
 	/**
-	 * @fires Samotraces.Lib.TimeWindow#tw:update
+	 * @fires Samotraces.TimeWindow#tw:update
 	 * @todo Handle correctly the bind to the timer (if this.timer) 
 	 */
 	set_width: function(width,center) {
@@ -1431,7 +1655,7 @@ Samotraces.Lib.TimeWindow.prototype = {
 		this.trigger('tw:update');
 	},
 	/**
-	 * @fires Samotraces.Lib.TimeWindow#tw:translate
+	 * @fires Samotraces.TimeWindow#tw:translate
 	 */
 	translate: function(delta) {
 		if(this.timer) {
@@ -1448,15 +1672,17 @@ Samotraces.Lib.TimeWindow.prototype = {
 	},
 };
 
+
+// last: core/Timer.js
 /**
  * @summary Object that stores the current time
  * @class Object that stores the current time
  * @author Benoît Mathern
  * @constructor
- * @augments Samotraces.Lib.EventHandler
- * @fires Samotraces.Lib.Timer#timer:update
+ * @augments Samotraces.EventHandler
+ * @fires Samotraces.Timer#timer:update
  * @description
- * Samotraces.Lib.Timer is a Javascript object that stores
+ * Samotraces.Timer is a Javascript object that stores
  * the current time.
  * This Object stores a time and informs widgets or other
  * objects when the time changes.
@@ -1472,19 +1698,19 @@ Samotraces.Lib.TimeWindow.prototype = {
  *     <code>Date.now()</code> by default).
  */
 
-Samotraces.Lib.Timer = function(init_time,period,update_function) {
+Samotraces.Timer = function Timer(init_time,period,update_function) {
 	// Adding the Observable trait
-	Samotraces.Lib.EventHandler.call(this);
+	Samotraces.EventHandler.call(this);
 	this.time = init_time || 0;
 	this.period = period || 2000;
 	this.update_function = update_function || function() {return Date.now();};
 	this.is_playing = false;
 };
 
-Samotraces.Lib.Timer.prototype = {
+Samotraces.Timer.prototype = {
 	/**
 	 * Sets the Timer to the given time.
-	 * @fires Samotraces.Lib.Timer#timer:update
+	 * @fires Samotraces.Timer#timer:update
 	 * @param {Number} time New time
 	 */
 	set: function(time) {
@@ -1493,7 +1719,7 @@ Samotraces.Lib.Timer.prototype = {
 			this.time = new_time; 
 			/**
 			 * Time change event.
-			 * @event Samotraces.Lib.Timer#timer:update
+			 * @event Samotraces.Timer#timer:update
 			 * @type {object}
 			 * @property {String} type - The type of the event (= "timer:update").
 			 */
@@ -1504,7 +1730,7 @@ Samotraces.Lib.Timer.prototype = {
 	 * Sets or get the Timer's current time.
 	 * If no parameter is given, the current time is returned.
 	 * Otherwise, sets the Timer to the givent time.
-	 * @fires Samotraces.Lib.Timer#timer:update
+	 * @fires Samotraces.Timer#timer:update
 	 * @param {Number} [time] New time
 	 */
 	time: function(time) {
@@ -1524,7 +1750,7 @@ Samotraces.Lib.Timer.prototype = {
 			this.time = this.update_function(this.time);
 			/**
 			 * Time change event (actualising time when playing)
-			 * @event Samotraces.Lib.Timer#timer:play:update
+			 * @event Samotraces.Timer#timer:play:update
 			 * @type {object}
 			 * @property {String} type 
 			 *     - The type of the event (= "timer:play:update").
@@ -1542,136 +1768,141 @@ Samotraces.Lib.Timer.prototype = {
 	}
 };
 
+
+// last: core/Trace.js
+// This file is only for the documentation. No actual implmentation.
+// TODO make a Javascript class that throws an error if called?
+// TODO pas de doc abstraite tans Trace.js -> doc concrète dans LocalTrace -> c'est moins compliqué !!! -> de toute façon, Javascript ne fait pas de vrai héritage !
+
 /**
  * Trace is a shortname for the 
- * {@link Samotraces.Lib.Trace}
+ * {@link Samotraces.Trace}
  * object.
  * @typedef Trace
- * @see Samotraces.Lib.Trace
+ * @see Samotraces.Trace
  */
+
+/* *
+ * @summary JavaScript (abstract) Trace class.
+ * @class JavaScript (abstract) Trace class.
+ * @constructor Samotraces.Trace-ktbs-API
+ * @abstract
+ * @todo define Trace-ktbs-API abstract class
+ */
+/* *
+ * @summary JavaScript (abstract) Trace class.
+ * @class JavaScript (abstract) Trace class.
+ * @constructor Samotraces.Trace-Samotraces-API
+ * @augments Trace-ktbs-API
+ * @abstract
+ * @todo define Trace-Samotraces-API abstract class
+ */
+
+
 /**
  * @summary JavaScript (abstract) Trace class.
  * @class JavaScript (abstract) Trace class.
  * @author Benoît Mathern
- * @fires Samotraces.Lib.Trace#trace:create:obsel
- * @fires Samotraces.Lib.Trace#trace:update
- * @constructor
+ * @fires Samotraces.Trace#trace:create:obsel
+ * @fires Samotraces.Trace#trace:remove:obsel
+ * @fires Samotraces.Trace#trace:edit:obsel
+ * @fires Samotraces.Trace#trace:update
+ * @constructor Samotraces.Trace
  * @abstract
- * @augments Samotraces.Lib.EventHandler
+ * @augments Samotraces.EventHandler
  * @description
- * Samotraces.Lib.DemoTrace is a Javascript Trace object.
+ * Samotraces.DemoTrace is a Javascript Trace object.
  * Methods are available to get 
  * the Obsels from the trace, create new Obsels, etc.
  *
  * The trace is initialised empty. Obsels have to be created
- * by using the {@link Samotraces.Lib.DemoTrace#newObsel} method.
+ * by using the {@link Samotraces.DemoTrace#newObsel} method.
  */
-Samotraces.Lib.Trace = function() {
-	// Adding the Observable trait
-	Samotraces.Lib.EventHandler.call(this);
-
-	/* Array d'obsels */
-	this.obsels = [];
-
-};
-
-Samotraces.Lib.Trace.prototype = {
-	/**
-	 * Creates a new obsel in the trace.
-	 * @param {string} type Type of the new obsel
-	 * @param {number} timeStamp Timestamp of the new obsel
-	 * @param {Object} attributes Additional attributes of the
-	 *     new obsel.
-	 * @todo update documentation by creating (fake) Trace
-	 * object from which each trace object must inherit.
-	 * This way, all traces have the same documentation.
-	 * @todo use KTBS abstract API.
-	 */
-	newObsel: function(type,timeStamp,attributes) {
-		console.log('Method Trace:newObsel() is abstract...');
-		/**
-		 * New obsel event.
-		 * @event Samotraces.Lib.Trace#trace:create:obsel
-		 * @type {object}
-		 * @property {string} type - The type of the event (= "trace:create:obsel").
-		 * @property {Samotraces.Lib.Obsel} data - The new obsel.
-		 */
-		/**
-		 * Trace change event.
-		 * @event Samotraces.Lib.Trace#trace:update
-		 * @type {object}
-		 * @property {string} type - The type of the event (= "trace:update").
-		 * @property {Array.<Samotraces.Lib.Obsel>} data - Updated array of obsels of the trace.
-		 */
-	},
-	
-	getObsel: function(id) {
-		console.log('Method Trace:getObsel() is abstract...');
-	},
-
-/// OFFICIAL TRACE API
-
-	/**
-	 * Returns a list obsels of this trace matching the parameters
-	 * @abstract
-	 * @returns {Array.<Obsels>} List of obsels matching the parameters
-	 * @param {number} [begin] 
-	 * @param {number} [end] 
-	 * @param {boolean} [reverse] 
-	 */
-	list_obsels: function(begin,end,reverse) {
-		console.log('Error: Trace:list_obsels() is abstract...');
-	}
-
-
-};
-
 
 /**
- * @class
- * Singleton object that detects when the size of the
- * window changes.
- * Widgets that need to update themselves when the size of
- * the window changes should listen to the 'resize' event
- * triggered by the WindowState object.
- * @fires Samotraces.Lib.WindowState#window:resize
- * @todo fix this... this is not a class
+ * @summary
+ * Triggers when a new obsel has been added to the trace
+ * @event Samotraces.Trace#trace:create:obsel
+ * @type {object}
+ * @property {string} type - The type of the event (= "trace:create:obsel").
+ * @property {Samotraces.Obsel} data - The new obsel.
  */
-Samotraces.Lib.WindowState = (function() {
-	var WS = function() {
-		// Addint the Observable trait
-		Samotraces.Lib.EventHandler.call(this);
-		window.onresize = this.resize.bind(this);
-	};
-	
-	WS.prototype = {
-		resize: function() {
-			/**
-			 * Window resize event.
-			 * @event Samotraces.Lib.WindowState#window:resize
-			 * @type {object}
-			 * @property {String} type - The type of the event (= "window:resize").
-			 */
-			this.trigger('window:resize'); 
-		},
-	};
+/**
+ * @summary
+ * Triggers when the trace has changed.
+ * @event Samotraces.Trace#trace:update
+ * @type {object}
+ * @property {string} type - The type of the event (= "trace:update").
+ * @property {Array.<Samotraces.Obsel>} data - Updated array of obsels of the trace.
+ */
+/**
+ * @summary
+ * Triggers when an Obsel has been removed from the trace.
+ * @event Samotraces.Trace#trace:remove:obsel
+ * @type {object}
+ * @property {string} type - The type of the event (= "trace:remove:obsel").
+ * @property {Samotraces.Obsel} data - Obsel that has been removed from the trace.
+ */
+/**
+ * @summary
+ * Triggers when an Obsel has been edited.
+ * @event Samotraces.Trace#trace:edit:obsel
+ * @type {object}
+ * @property {string} type - The type of the event (= "trace:edit:obsel").
+ * @property {Samotraces.Obsel} data - Obsel that has been edited.
+ */
 
-	// WindowState is Observable
-	//Samotraces.Objects.Observable.call(WS.prototype);
 
-	return new WS();
-})();
 
+//	get_label: function() { return this.label; },
+//	set_label: function(lbl) {},
+//	reset_label: function() {},
+
+//	get_model: function() { return this.model; },
+//	get_origin: function() { return this.origin; },
+//	list_source_traces: function() { return this.source_traces; },
+//	list_transformed_traces: function() { return this.transformed_traces; },
+/**
+ * @summary
+ * Returns a list obsels of this trace matching the parameters.
+ * @description
+ * Returns a list obsels of this trace matching the parameters.
+ * @method Samotraces.Trace#list_obsels
+ * @abstract
+ * @returns {Array.<Obsels>} List of obsels matching the parameters
+ * @param {number} [begin] Minimum of time for retrieved Obsels.
+ * @param {number} [end] Maximum of time for retrieved Obsels.
+ * @param {boolean} [reverse] 
+ * @todo TODO finish documentation
+ */
+//	list_obsels: function(begin,end,reverse) {},
+
+/**
+ * @summary
+ * Retrieve an obsel in the trace from its ID.
+ * @param {String} id ID of the Obsel to retrieve
+ * @returns {Obsel} Obsel that corresponds to this ID
+ *     or undefined if the obsel was not found.
+ */	
+//	set_model: function(model) {	},
+//	set_origin: function(origin) {	},
+//	get_default_subject: function() { return this.subject;},
+//	set_default_subject: function(subject) {	},
+//	create_obsel: function(obsel_params) {	},
+//	remove_obsel: function(obs) {	},
+
+
+// last: UI/Widgets/ImportTrace.js
 /**
  * @summary Widget for importing a trace from a CSV file.
  * @class Widget for importing a trace from a CSV file.
  * @author Benoît Mathern
  * @constructor
- * @augments Samotraces.Widgets.Widget
- * @see Samotraces.Widgets.Basic.ImportTrace
+ * @augments Samotraces.UI.Widgets.Widget
+ * @see Samotraces.UI.Widgets.Basic.ImportTrace
  * @todo ATTENTION code qui vient d'ailleurs !
  * @description
- * The {@link Samotraces.Widgets.Basic.ImportTrace} widget is a generic
+ * The {@link Samotraces.UI.Widgets.Basic.ImportTrace} widget is a generic
  * Widget to import a trace from a CSV file.
  * 
  * This widget currently accept the following format:
@@ -1694,19 +1925,19 @@ Samotraces.Lib.WindowState = (function() {
  * @param {String}	html_id
  *     Id of the DIV element where the widget will be
  *     instantiated
- * @param {Samotraces.Lib.Trace} trace
+ * @param {Samotraces.Trace} trace
  *     Trace object in which the obsels will be imported.
  */
-Samotraces.Widgets.ImportTrace = function(html_id,trace) {
+Samotraces.UI.Widgets.ImportTrace = function(html_id,trace) {
 	// WidgetBasicTimeForm is a Widget
-	Samotraces.Widgets.Widget.call(this,html_id);
+	Samotraces.UI.Widgets.Widget.call(this,html_id);
 
 	this.trace = trace;
 
 	this.init_DOM();
 };
 
-Samotraces.Widgets.ImportTrace.prototype = {
+Samotraces.UI.Widgets.ImportTrace.prototype = {
 	init_DOM: function() {
 
 		var p_element = document.createElement('p');
@@ -1877,16 +2108,17 @@ Samotraces.Widgets.ImportTrace.prototype = {
 		csv.pop(); // remove the last line... Why?...
 	//	console.log('fichier parsé');
 		csv.map(function(line) {
-			var time = line.shift();
-			var type = line.shift();
-			var attributes = {};
+			var o_attr = {};
+			o_attr.begin = line.shift();
+			o_attr.type = line.shift();
+			o_attr.attributes = {};
 			for( var i=0; i < (line.length-1)/2 ; i++) {
 				if(line[2*i] != "") {
-					attributes[line[2*i]] = line[2*i+1];
+					o_attr.attributes[line[2*i]] = line[2*i+1];
 				}
 			}
 		//	console.log('new obsel');
-			trace.newObsel(type,time,attributes);
+			trace.create_obsel(o_attr);
 		});		
 /*
 		var output = "";
@@ -1899,14 +2131,16 @@ Samotraces.Widgets.ImportTrace.prototype = {
 
 };
 
+
+// last: UI/Widgets/ObselInspector.js
 /**
  * @summary Widget for visualising an Obsel as an HTML list.
  * @class Widget for visualising an Obsel as an HTML list.
  * @author Benoît Mathern
  * @constructor
- * @mixes Samotraces.Widgets.Widget
+ * @mixes Samotraces.UI.Widgets.Widget
  * @description
- * Samotraces.Widgets.ObselInspector is a generic
+ * Samotraces.UI.Widgets.ObselInspector is a generic
  * Widget to visualise Obsels.
  * 
  * This widget observes a {@link Samotraces.Lib.Selector|Selector}
@@ -1923,9 +2157,9 @@ Samotraces.Widgets.ImportTrace.prototype = {
  * @param {Selector.<Obsel>} obsel_selector
  *     A Selector of Obsel to observe.
  */
-Samotraces.Widgets.ObselInspector = function(html_id,obsel_selector) {
+Samotraces.UI.Widgets.ObselInspector = function(html_id,obsel_selector) {
 	// WidgetBasicTimeForm is a Widget
-	Samotraces.Widgets.Widget.call(this,html_id);
+	Samotraces.UI.Widgets.Widget.call(this,html_id);
 	this.add_class('Widget-ObselInspector');
 
 	this.obsel = obsel_selector;
@@ -1936,7 +2170,7 @@ Samotraces.Widgets.ObselInspector = function(html_id,obsel_selector) {
 	this.init_DOM();
 };
 
-Samotraces.Widgets.ObselInspector.prototype = {
+Samotraces.UI.Widgets.ObselInspector.prototype = {
 	init_DOM: function() {
 
 		this.close_element = document.createElement('span');
@@ -1989,15 +2223,17 @@ Samotraces.Widgets.ObselInspector.prototype = {
 
 
 
+
+// last: UI/Widgets/ReadableTimeForm.js
 /**
  * @summary Widget for visualising the current time as a date/time.
  * @class Widget for visualising the current time as a date/tim.
  * @author Benoît Mathern
  * @constructor
  * @mixes Samotraces.Widgets.Widget
- * @see Samotraces.Widgets.TimeForm
+ * @see Samotraces.UI.Widgets.TimeForm
  * @description
- * Samotraces.Widgets.ReadableTimeForm is a generic
+ * Samotraces.UI.Widgets.ReadableTimeForm is a generic
  * Widget to visualise the current time.
  *
  * The time (in ms from the 01/01/1970) is converted in a
@@ -2012,12 +2248,12 @@ Samotraces.Widgets.ObselInspector.prototype = {
  * @param {String}	html_id
  *     Id of the DIV element where the widget will be
  *     instantiated
- * @param {Samotraces.Lib.Timer} timer
+ * @param {Samotraces.Timer} timer
  *     Timer object to observe.
  */
-Samotraces.Widgets.ReadableTimeForm = function(html_id,timer) {
+Samotraces.UI.Widgets.ReadableTimeForm = function(html_id,timer) {
 	// WidgetBasicTimeForm is a Widget
-	Samotraces.Widgets.Widget.call(this,html_id);
+	Samotraces.UI.Widgets.Widget.call(this,html_id);
 
 	this.add_class('Widget-ReadableTimeForm');
 
@@ -2029,7 +2265,7 @@ Samotraces.Widgets.ReadableTimeForm = function(html_id,timer) {
 	this.refresh({data: this.timer.time});
 };
 
-Samotraces.Widgets.ReadableTimeForm.prototype = {
+Samotraces.UI.Widgets.ReadableTimeForm.prototype = {
 	init_DOM: function() {
 
 		var p_element = document.createElement('p');
@@ -2146,15 +2382,17 @@ Samotraces.Widgets.ReadableTimeForm.prototype = {
 };
 
 
+
+// last: UI/Widgets/TimeForm.js
 /**
  * @summary Widget for visualising the current time as a number.
  * @class Widget for visualising the current time as a number.
  * @author Benoît Mathern
  * @constructor
- * @mixes Samotraces.Widgets.Widget
- * @see Samotraces.Widgets.ReadableTimeForm
+ * @mixes Samotraces.UI.Widgets.Widget
+ * @see Samotraces.UI.Widgets.ReadableTimeForm
  * @description
- * Samotraces.Widgets.TimeForm is a generic
+ * Samotraces.UI.Widgets.TimeForm is a generic
  * Widget to visualise the current time.
  *
  * The time is displayed as a number. See
@@ -2169,12 +2407,12 @@ Samotraces.Widgets.ReadableTimeForm.prototype = {
  * @param {String}	html_id
  *     Id of the DIV element where the widget will be
  *     instantiated
- * @param {Samotraces.Lib.Timer} timer
+ * @param {Samotraces.Timer} timer
  *     Timer object to observe.
  */
-Samotraces.Widgets.TimeForm = function(html_id,timer) {
+Samotraces.UI.Widgets.TimeForm = function(html_id,timer) {
 	// WidgetBasicTimeForm is a Widget
-	Samotraces.Widgets.Widget.call(this,html_id);
+	Samotraces.UI.Widgets.Widget.call(this,html_id);
 
 	this.timer = timer;
 	this.timer.addEventListener('timer:update',this.refresh.bind(this));
@@ -2184,7 +2422,7 @@ Samotraces.Widgets.TimeForm = function(html_id,timer) {
 	this.refresh({data: this.timer.time});
 };
 
-Samotraces.Widgets.TimeForm.prototype = {
+Samotraces.UI.Widgets.TimeForm.prototype = {
 	init_DOM: function() {
 
 		var p_element = document.createElement('p');
@@ -2234,34 +2472,36 @@ Samotraces.Widgets.TimeForm.prototype = {
 
 };
 
+
+// last: UI/Widgets/TimePlayer.js
 /**
  * @summary Widget for playing/pausing a timer and controlling videos.
  * @class Widget for playing/pausing a timer and controlling videos.
  * @author Benoît Mathern
  * @constructor
- * @mixes Samotraces.Widgets.Widget
+ * @mixes Samotraces.UI.Widgets.Widget
  * @description
- * Samotraces.Widgets.TimePlayer is a Widget
+ * Samotraces.UI.Widgets.TimePlayer is a Widget
  * that allow to trigger the "play/pause" mechanism
  * of a timer. In addition, it controls a set of videos
  * that are synchronised to this timer.
  * 
- * This widget observes a Samotraces.Lib.Timer object.
+ * This widget observes a Samotraces.Timer object.
  * When the timer changes the videos are .
  * This widget also allow to change the time of the timer.
  * 
  * @param {String}	html_id
  *     Id of the DIV element where the widget will be
  *     instantiated
- * @param {Samotraces.Lib.Timer} timer
+ * @param {Samotraces.Timer} timer
  *     Timer object to observe.
- * @param {Array.<Samotraces.Widgets.TimePlayer.VideoConfig>} [videos]
+ * @param {Array.<Samotraces.UI.Widgets.TimePlayer.VideoConfig>} [videos]
  *     Array of VideoConfig, that defines the set of
  *     videos that will be synchronised on the timer.
  */
-Samotraces.Widgets.TimePlayer = function(html_id,timer,videos) {
+Samotraces.UI.Widgets.TimePlayer = function(html_id,timer,videos) {
 	// WidgetBasicTimeForm is a Widget
-	Samotraces.Widgets.Widget.call(this,html_id);
+	Samotraces.UI.Widgets.Widget.call(this,html_id);
 
 	/**
 	 * @typedef Samotraces.Widgets.TimePlayer.VideoConfig
@@ -2294,7 +2534,7 @@ Samotraces.Widgets.TimePlayer = function(html_id,timer,videos) {
 	this.onUpdateTime({data: this.timer.time});
 };
 
-Samotraces.Widgets.TimePlayer.prototype = {
+Samotraces.UI.Widgets.TimePlayer.prototype = {
 	init_DOM: function() {
 
 		var p_element = document.createElement('p');
@@ -2338,14 +2578,16 @@ Samotraces.Widgets.TimePlayer.prototype = {
 	},
 };
 
+
+// last: UI/Widgets/TimeSlider.js
 /**
  * @summary Widget for visualising a time slider.
  * @class Widget for visualising a time slider.
  * @author Benoît Mathern
  * @constructor
- * @mixes Samotraces.Widgets.Widget
+ * @mixes Samotraces.UI.Widgets.Widget
  * @description
- * Samotraces.Widgets.d3Basic.TimeSlider is a generic
+ * Samotraces.UI.Widgets.d3Basic.TimeSlider is a generic
  * Widget to visualise the current time in a temporal window
  *
  * @param {String}	divId
@@ -2357,12 +2599,12 @@ Samotraces.Widgets.TimePlayer.prototype = {
  * @param timer
  *     Timeer object -> containing the current time
  */
-Samotraces.Widgets.TimeSlider = function(html_id,time_window,timer) {
+Samotraces.UI.Widgets.TimeSlider = function(html_id,time_window,timer) {
 	// WidgetBasicTimeForm is a Widget
-	Samotraces.Widgets.Widget.call(this,html_id);
+	Samotraces.UI.Widgets.Widget.call(this,html_id);
 
 	this.add_class('Widget-TimeSlider');
-	Samotraces.Lib.WindowState.addEventListener('resize',this.draw.bind(this));
+	$(window).resize(this.draw.bind(this));
 
 	this.timer = timer;
 	this.timer.addEventListener('timer:update',this.draw.bind(this));
@@ -2380,7 +2622,7 @@ Samotraces.Widgets.TimeSlider = function(html_id,time_window,timer) {
 
 };
 
-Samotraces.Widgets.TimeSlider.prototype = {
+Samotraces.UI.Widgets.TimeSlider.prototype = {
 	init_DOM: function() {
 		// create the slider
 		this.slider_element = document.createElement('div');
@@ -2408,15 +2650,17 @@ Samotraces.Widgets.TimeSlider.prototype = {
 };
 
 
+
+// last: UI/Widgets/TraceDisplayIcons.js
 /**
  * @summary Widget for visualising a trace where obsels are displayed as images.
  * @class Widget for visualising a trace where obsels are displayed as images
  * @author Benoît Mathern
  * @requires d3.js framework (see <a href="http://d3js.org">d3js.org</a>)
  * @constructor
- * @mixes Samotraces.Widgets.Widget
+ * @mixes Samotraces.UI.Widgets.Widget
  * @description
- * The {@link Samotraces.Widgets.TraceDisplayIcons|TraceDisplayIcons} widget
+ * The {@link Samotraces.UI.Widgets.TraceDisplayIcons|TraceDisplayIcons} widget
  * is a generic
  * Widget to visualise traces with images. This widget uses 
  * d3.js to display traces as images in a SVG image.
@@ -2425,7 +2669,7 @@ Samotraces.Widgets.TimeSlider.prototype = {
  * icon will be displayed by default for each obsel.
  *
  * Note that clicking on an obsel will trigger a 
- * {@link Samotraces.Widgets.TraceDisplayIcons#ui:click:obsel|ui:click:obsel}
+ * {@link Samotraces.UI.Widgets.TraceDisplayIcons#ui:click:obsel|ui:click:obsel}
  * event.
  *
  * Tutorials {@tutorial tuto1.1_trace_visualisation},
@@ -2455,7 +2699,7 @@ Samotraces.Widgets.TimeSlider.prototype = {
  *     the x position or y position of an icon. This 
  *     makes it easy to define various types of behaviours.
  *     Relevant methods to use are:
- *     link Samotraces.Widgets.TraceDisplayIcons.calculate_x}
+ *     link Samotraces.UI.Widgets.TraceDisplayIcons.calculate_x}
  *     See tutorial 
  *     {@tutorial tuto1.3_visualisation_personalisation}
  *     for more details and examples.
@@ -2477,22 +2721,21 @@ Samotraces.Widgets.TimeSlider.prototype = {
  *     }
  * };
  */
-Samotraces.Widgets.TraceDisplayIcons = function(divId,trace,time_window,options) {
+Samotraces.UI.Widgets.TraceDisplayIcons = function(divId,trace,time_window,options) {
 
 	options = options || {};
 
 	// WidgetBasicTimeForm is a Widget
-	Samotraces.Widgets.Widget.call(this,divId);
+	Samotraces.UI.Widgets.Widget.call(this,divId);
 
 	this.add_class('Widget-TraceDisplayIcons');
-	Samotraces.Lib.WindowState.addEventListener('window:resize',this.refresh_x.bind(this));
+	$(window).resize(this.refresh_x.bind(this));
 
 	this.trace = trace;
 	this.trace.addEventListener('trace:update',this.draw.bind(this));
 	this.trace.addEventListener('trace:create:obsel',this.draw.bind(this));
 	this.trace.addEventListener('trace:remove:obsel',this.draw.bind(this));
-	this.trace.addEventListener('trace:update:obsel',this.draw.bind(this));
-	this.trace.addEventListener('newObsel',this.addObsel.bind(this));
+	this.trace.addEventListener('trace:edit:obsel',this.obsel_redraw.bind(this));
 
 	this.window = time_window;
 	this.window.addEventListener('tw:update',this.refresh_x.bind(this));
@@ -2502,7 +2745,7 @@ Samotraces.Widgets.TraceDisplayIcons = function(divId,trace,time_window,options)
 //	this.window.addEventListener('',this..bind(this));
 
 	this.init_DOM();
-	this.data = this.trace.traceSet;
+	this.data = this.trace.list_obsels();
 
 	this.options = {};
 	/**
@@ -2567,7 +2810,7 @@ Samotraces.Widgets.TraceDisplayIcons = function(divId,trace,time_window,options)
 	this.draw();
 };
 
-Samotraces.Widgets.TraceDisplayIcons.prototype = {
+Samotraces.UI.Widgets.TraceDisplayIcons.prototype = {
 	init_DOM: function() {
 
 
@@ -2647,7 +2890,7 @@ Samotraces.Widgets.TraceDisplayIcons.prototype = {
 
 	draw: function(e) {
 		if(e) {
-			this.data = this.trace.traceSet;
+			this.data = this.trace.list_obsels();
 		}
 
 		this.d3Obsels()
@@ -2671,18 +2914,22 @@ Samotraces.Widgets.TraceDisplayIcons.prototype = {
 			});
 		});
 	},
-	drawObsel: function(obs) {
-		this.draw();	
+
+	obsel_redraw: function(e) {
+		obs = e.data;
+		var sel = this.d3Obsels()
+			.filter(function(o,id) {
+//				console.log('data:id,obsel_edit_id',id,obs.get_id(),id == obs.get_id());
+				return id == obs.get_id();
+			})
+			.attr('x',this.options.x)
+			.attr('y',this.options.y)
+			.attr('width',this.options.width)
+			.attr('height',this.options.height)
+			.attr('xlink:href',this.options.url);
+console.log("obsel_redraw",$.data(sel[0][0]));
 	},
 
-	addObsel: function(e) {
-		var obs = e.data;
-//console.log('addObsel '+obs.id);
-//console.log(obs);
-		this.data.push(obs);
-		this.drawObsel(obs);
-		this.updateEventListener();
-	},
 	d3Obsels: function() {
 		return this.svg_gp
 					.selectAll('circle,image,rect')
@@ -2699,32 +2946,34 @@ Samotraces.Widgets.TraceDisplayIcons.prototype = {
 
 
 
+
+// last: UI/Widgets/TraceDisplayObselOccurrences.js
 /**
  * @summary Widget for visualising a trace.
  * @class Widget for visualising a trace.
  * @author Benoît Mathern
  * @requires d3.js framework (see <a href="http://d3js.org">d3js.org</a>)
  * @constructor
- * @mixes Samotraces.Widgets.Widget
+ * @mixes Samotraces.UI.Widgets.Widget
  * @description
  * DESCRIPTION TO COME....
  * @param {String}	divId
  *     Id of the DIV element where the widget will be
  *     instantiated
- * @param {Samotraces.Lib.Trace}	trace
+ * @param {Samotraces.Trace}	trace
  *     Trace object to display
- * @param {Samotraces.Lib.TimeWindow} time_window
+ * @param {Samotraces.TimeWindow} time_window
  *     TimeWindow object that defines the time frame
  *     being currently displayed.
  * @todo add description and update doc...
  */
-Samotraces.Widgets.TraceDisplayObselOccurrences = function(divId,trace,time_window) {
+Samotraces.UI.Widgets.TraceDisplayObselOccurrences = function(divId,trace,time_window) {
 
 	// WidgetBasicTimeForm is a Widget
-	Samotraces.Widgets.Widget.call(this,divId);
+	Samotraces.UI.Widgets.Widget.call(this,divId);
 
 	this.add_class('Widget-TraceDisplayObselOccurrences');
-	Samotraces.Lib.WindowState.addEventListener('window:resize',this.refresh_x.bind(this));
+	$(window).resize(this.refresh_x.bind(this));
 
 	this.trace = trace;
 	this.trace.addEventListener('trace:update',this.draw.bind(this));
@@ -2740,7 +2989,7 @@ Samotraces.Widgets.TraceDisplayObselOccurrences = function(divId,trace,time_wind
 	this.draw();
 };
 
-Samotraces.Widgets.TraceDisplayObselOccurrences.prototype = {
+Samotraces.UI.Widgets.TraceDisplayObselOccurrences.prototype = {
 	init_DOM: function() {
 		var div_elmt = d3.select('#'+this.id);
 		this.svg = div_elmt.append('svg');
@@ -2838,12 +3087,14 @@ var new_time = widget.timer.time - delta_x*widget.window.get_width()/widget.elem
 
 
 
+
+// last: UI/Widgets/Widget.js
 /**
  * @mixin
  * @requires jQuery framework (see <a href="http://jquery.com">jquery.com</a>)
  * @requires jQuery Mouse Wheel plugin (see <a href="https://github.com/brandonaaron/jquery-mousewheel">Mouse Wheel plugin</a>)
  * @description
- * All widgets should inherit from this Samotraces.Widgets.Widget.
+ * All widgets should inherit from this Samotraces.UI.Widgets.Widget.
  * 
  * In order to use create a widget that inherits from the 
  * Widget class, one mush include the following code in 
@@ -2856,7 +3107,7 @@ var new_time = widget.timer.time - delta_x*widget.window.get_width()/widget.elem
  * @property {HTMLElement} element HTML element the
  * Widget is attached to.
  */
-Samotraces.Widgets.Widget = (function() {
+Samotraces.UI.Widgets.Widget = (function() {
 	/**
 	 * Adds the given class to the HTML element to which
 	 * this Widget is attached to.
@@ -2978,17 +3229,19 @@ Samotraces.Widgets.Widget = (function() {
 	};
 })();
 
+
+// last: UI/Widgets/WindowScale.js
 /**
  * @summary Widget for visualising a time scale.
  * @class Widget for visualising a time scale.
  * @author Benoît Mathern
  * @requires d3.js framework (see <a href="http://d3js.org">d3js.org</a>)
  * @constructor
- * @mixes Samotraces.Widgets.Widget
+ * @mixes Samotraces.UI.Widgets.Widget
  * @description
- * Samotraces.Widgets.WindowScale is a generic
+ * Samotraces.UI.Widgets.WindowScale is a generic
  * Widget to visualise the temporal scale of a 
- * {@link Samotraces.Lib.TimeWindow|TimeWindow}. This
+ * {@link Samotraces.TimeWindow|TimeWindow}. This
  * widget uses d3.js to calculate and display the scale.
  *
  * Note: unless the optional argument is_javascript_date is defined,
@@ -3012,12 +3265,12 @@ Samotraces.Widgets.Widget = (function() {
  *     it is assumed that the JavaScript Date object has been used to represent time.
  *     Otherwise, the numerical value of time will be displayed.
  */
-Samotraces.Widgets.WindowScale = function(html_id,time_window,is_javascript_date) {
+Samotraces.UI.Widgets.WindowScale = function(html_id,time_window,is_javascript_date) {
 	// WidgetBasicTimeForm is a Widget
-	Samotraces.Widgets.Widget.call(this,html_id);
+	Samotraces.UI.Widgets.Widget.call(this,html_id);
 
 	this.add_class('Widget-WindowScale');
-	Samotraces.Lib.WindowState.addEventListener('window:resize',this.draw.bind(this));
+	$(window).resize(this.draw.bind(this));
 
 	this.window = time_window;
 //	time_window.addObserver(this);
@@ -3037,7 +3290,7 @@ Samotraces.Widgets.WindowScale = function(html_id,time_window,is_javascript_date
 
 };
 
-Samotraces.Widgets.WindowScale.prototype = {
+Samotraces.UI.Widgets.WindowScale.prototype = {
 	init_DOM: function() {
 		// create the slider
 		this.svg = d3.select("#"+this.id).append("svg");
@@ -3072,14 +3325,16 @@ Samotraces.Widgets.WindowScale.prototype = {
 };
 
 
+
+// last: UI/Widgets/WindowSlider.js
 /**
  * @summary Widget for visualising a window slider.
  * @class Widget for visualising a window slider.
  * @author Benoît Mathern
  * @constructor
- * @mixes Samotraces.Widgets.Widget
+ * @mixes Samotraces.UI.Widgets.Widget
  * @description
- * Samotraces.Widgets.d3Basic.WindowSlider is a generic
+ * Samotraces.UI.Widgets.d3Basic.WindowSlider is a generic
  * Widget to visualise a temporal window
  *
  * @param {String}	divId
@@ -3092,12 +3347,12 @@ Samotraces.Widgets.WindowScale.prototype = {
  *     TimeWindow object -> representing the small window
  *     (e.g., the current time window being visualised with another widget)
  */
-Samotraces.Widgets.WindowSlider = function(html_id,wide_window,slider_window) {
+Samotraces.UI.Widgets.WindowSlider = function(html_id,wide_window,slider_window) {
 	// WidgetBasicTimeForm is a Widget
 	Samotraces.Widgets.Widget.call(this,html_id);
 
 	this.add_class('Widget-WindowSlider');
-	Samotraces.Lib.WindowState.addEventListener('window:resize',this.draw.bind(this));
+	$(window).resize(this.draw.bind(this));
 
 	this.wide_window = wide_window;
 	this.wide_window.addEventListener('tw:update',this.draw.bind(this));
@@ -3114,7 +3369,7 @@ Samotraces.Widgets.WindowSlider = function(html_id,wide_window,slider_window) {
 	this.draw();
 };
 
-Samotraces.Widgets.WindowSlider.prototype = {
+Samotraces.UI.Widgets.WindowSlider.prototype = {
 	init_DOM: function() {
 
 		// create the slider
@@ -3148,6 +3403,8 @@ Samotraces.Widgets.WindowSlider.prototype = {
 };
 
 
+
+// last: UI/Widgets/ktbs/ListBases.js
 
 // Check if relevant namespaces exist - or create them.
 var Samotraces = Samotraces || {};
@@ -3253,6 +3510,8 @@ Samotraces.Widgets.ktbs.ListBases.prototype = {
 
 
 
+
+// last: UI/Widgets/ktbs/ListTracesInBases.js
 
 // Check if relevant namespaces exist - or create them.
 var Samotraces = Samotraces || {};

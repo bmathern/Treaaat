@@ -1,12 +1,12 @@
 
 $(window).load(function() {
 
-	trace = new Samotraces.Lib.DemoTrace();
-//	trace = new Samotraces.Lib.Ktbs.Trace('test','http://dsi-liris-silex.univ-lyon1.fr/ofs/ktbs/test/test/');
+	trace = new Samotraces.LocalTrace();
+//	trace = new Samotraces.Ktbs.Trace('test','http://dsi-liris-silex.univ-lyon1.fr/ofs/ktbs/test/test/');
 
 	/* TIME-WINDOW HANDLER */
-	var timer = new Samotraces.Lib.Timer(0);
-	var tw = new Samotraces.Lib.TimeWindow({start: 0, end: 10});
+	var timer = new Samotraces.Timer(0);
+	var tw = new Samotraces.TimeWindow({start: 0, end: 10});
 	var offset = 5;
 	function calc_tw() {
 		var px_width = $('#trace').prop('clientWidth');
@@ -57,11 +57,11 @@ $(window).load(function() {
 			}
 		}
 	};
-	new Samotraces.Widgets.TraceDisplayIcons('trace',trace,tw,opt);
-	new Samotraces.Widgets.WindowScale('scale',tw);
+	new Samotraces.UI.Widgets.TraceDisplayIcons('trace',trace,tw,opt);
+	new Samotraces.UI.Widgets.WindowScale('scale',tw);
 
 	/* SELECTING OBSEL */
-	var sel = new Samotraces.Lib.Selector('Obsel');
+	var sel = new Samotraces.Selector('Obsel');
 	$('body').on('click','.Σ-obsel',function(e) {
 		sel.select($.data(e.target,'Σ-data'));
 	});
@@ -99,8 +99,6 @@ console.log(o);
 		sel.empty();
 		$('#obsel').empty();
 	});
-
-	//new Samotraces.Widgets.ObselInspector('obsel',sel);
 
 
 	/* COLLECTING THE TRACE */
@@ -154,7 +152,11 @@ console.log(o);
 			default:
 				break;
 		}
-		trace.newObsel(e.type,Date.now(),attr);
+		trace.create_obsel({
+			type: e.type,
+			begin: Date.now(),
+			attributes: attr
+		});
 		timer.set(count);
 	};
 	public_collector = function(type,attributes) {
@@ -164,7 +166,11 @@ console.log(o);
 		for(var key in attributes) {
 			attre[key] = attributes[key];
 		}
-		trace.newObsel(e.type,Date.now(),attr);
+		trace.create_obsel({
+			type: e.type,
+			begin: Date.now(),
+			attributes: attr
+		});
 		timer.set(count);		
 	};
 
