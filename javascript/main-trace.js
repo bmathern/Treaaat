@@ -2,6 +2,7 @@
 $(window).load(function() {
 
 	trace = new Samotraces.Lib.DemoTrace();
+//	trace = new Samotraces.Lib.Ktbs.Trace('test','http://dsi-liris-silex.univ-lyon1.fr/ofs/ktbs/test/test/');
 
 	/* TIME-WINDOW HANDLER */
 	var timer = new Samotraces.Lib.Timer(0);

@@ -173,8 +173,11 @@ Autocompleter.prototype = {
 			var concept = this.autocomp();
 			if(concept !== false) {
 				if(this.type === "TEXTAREA") { // TEXTAREA field
-					var a = this.annotations.find(function(a) {
-						return a.class == "autocomplete";
+					var a;
+					this.annotations.forEach(function(annot) {
+						if(annot.class == "autocomplete") {
+							a = annot;
+						}
 					});
 //		console.log(a);
 					if(a !== undefined) {

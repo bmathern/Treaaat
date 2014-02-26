@@ -21,6 +21,11 @@ li.budget:before {
 	float: left;
 }
 
+.thumb {
+	max-width: 96px;
+	max-height: 64px;
+}
+
 .Autocompleter li.selected {
 	text-decoration: underline;
 	background: #e1e1e1;

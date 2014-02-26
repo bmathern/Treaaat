@@ -306,8 +306,11 @@ RecipeUI.prototype = {
 		if(d) {
 			label = d.label;
 		} else {
-			var concept = this.ingredients.find(function(c) {
-				return (text == c.text)||(text == c.plural);
+			var concept;
+			this.ingredients.forEach(function(c) {
+				if((text == c.text)||(text == c.plural)) {
+					concept = c;
+				}
 			});
 			if(concept === undefined) { // if ingredient not already in this.ingredients
 				// adds to this.ingredients
