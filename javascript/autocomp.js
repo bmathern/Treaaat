@@ -4,6 +4,7 @@
 // TODO quand on écrit un mot qui correspond exactement à une annotation -> annotation est effectuée automatiquement (proposition de la version non annotée du mot en plus)
 // TODO quand on focus() / déplace le curseur / revient en arrière -> mettre à jour suggestion (actuellement suggestion uniquement mise à jour sur frappe.
 // TODO BUG accents -> closes autocomplete box
+// TODO BUG autocompleted+"," -> breaks the annotation
 // TODO BUG copier-coller => casse tout! oncopy, oncut et onpaste?
 /*
  -> lié au fait que le e.keyCode ou e.charCode ne renvoit pas le caractère, mais la touche
@@ -332,7 +333,8 @@ console.log(char+" isChar?"+e.isChar);
 			// If autocompletion -> need to change the input field
 			if(inserted_text !== "") { dom_el.value = text; }
 			// TODO write explanation
-			if((inserted_text+char).length > 0 && $.inArray((inserted_text+char)[0],this.word_sep) !== -1) {
+//console.log((inserted_text+char).length,(inserted_text+char),$.inArray((inserted_text+char)[0],this.word_sep) !== -1);
+			if((inserted_text+char).length > 0 && $.inArray((inserted_text+char)[0],this.word_sep) !== -1) { // FIXME char != what I think... Not the actual char => not working
 		console.log("special char: '"+(inserted_text+char)[0]+"'");
 				test_eq = false;
 			}

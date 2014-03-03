@@ -1,8 +1,15 @@
 
 $(window).load(function() {
 
-	trace = new Samotraces.LocalTrace();
-//	trace = new Samotraces.Ktbs.Trace('test','http://dsi-liris-silex.univ-lyon1.fr/ofs/ktbs/test/test/');
+//	trace = new Samotraces.LocalTrace();
+//	trace = new Samotraces.KTBS.Trace('test','http://dsi-liris-silex.univ-lyon1.fr/ofs/ktbs/test/test/');
+	base = new Samotraces.KTBS.Base('http://127.0.0.1/ktbs/test_obsel_type/','test');
+	var id = (Date.now()).toString()+"_v0";
+	base.create_stored_trace(id);
+prompt('t','t');	
+	trace = base.get_trace(id);
+//	trace = new Samotraces.KTBS.Trace('test','http://127.0.0.1/ktbs/test/toto2/');
+
 
 	/* TIME-WINDOW HANDLER */
 	var timer = new Samotraces.Timer(0);
@@ -15,7 +22,7 @@ $(window).load(function() {
 	};
 	calc_tw();
 	$(window).resize(calc_tw);
-	timer.addEventListener('timer:update',function(e) {
+	timer.on('timer:update',function(e) {
 		tw.translate(e.data- (tw.end-offset) );
 	});
 
@@ -24,11 +31,11 @@ $(window).load(function() {
 		x: function(o) {
 //console.log("t:",o.attributes.count,(o.attributes.count - this.window.start)*this.scale_x,this.window.start);
 //console.log("x:",this.calculate_x(o.attributes.count || 0));
-			return this.calculate_x(o.attributes.count || 0);
+			return this.calculate_x(o.get_attribute('count') || 0);
 		},
 		url: function(o) {
 			var path = "images/icons/";
-			switch(o.type) {
+			switch(o.get_type()) {
 				case 'click':
 					return path+'cursor.png';
 				case 'focusin':
@@ -62,12 +69,12 @@ $(window).load(function() {
 
 	/* SELECTING OBSEL */
 	var sel = new Samotraces.Selector('Obsel');
-	$('body').on('click','.Σ-obsel',function(e) {
-		sel.select($.data(e.target,'Σ-data'));
+	$('body').on('click','.Samotraces-obsel',function(e) {
+		sel.select($.data(e.target,'Samotraces-data'));
 	});
 
 	/* OBSEL INSPECTOR */
-	sel.addEventListener('selection:add',function(e) {
+	sel.on('selection:add',function(e) {
 		var o = e.data;
 console.log(o);
 		$('#myModalLabel').text('Obsel '+o.id);
@@ -77,7 +84,7 @@ console.log(o);
 		html.push('<dl class="dl-horizontal">');
 '<div class="panel-heading"><h3 class="panel-title">Attributes</h3></div><div class="panel-body">Panel content</div></div>'
 
-		html.push('<dt>Type</dt><dd>'+o.type+'</dd>');
+		html.push('<dt>Type</dt><dd>'+o.get_type()+'</dd>');
 		html.push('<dt>Begin</dt><dd>'+o.get_begin()+'</dd>');
 		html.push('<dt>Begin - converted</dt><dd>'+Date(o.get_begin())+'</dd>');
 		html.push('</dl>');
@@ -87,7 +94,7 @@ console.log(o);
 		html.push('<div class="panel-body">');
 		html.push('<dl class="dl-horizontal">');
 		for(var key in o.attributes) {
-			html.push('<dt>'+key+'</dt><dd>'+o.attributes[key]+'</dd>');
+			html.push('<dt>'+key+'</dt><dd>'+o.get_attribute(key)+'</dd>');
 		};
 		html.push('</dl>');
 		html.push('</div></div>');

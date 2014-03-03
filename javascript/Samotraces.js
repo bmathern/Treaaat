@@ -17,12 +17,8 @@
 	 * @property {Boolean} [debug=false]
 	 */
 	var debug_mode = false;
+	Samotraces.set_debug = function(val) { debug_mode = val; };
 
-	/**
-	 * Library of the Objects of Samotraces
-	 * @namespace Samotraces.Lib
-	 */
-	Samotraces.Lib = {};
 	/**
 	 * Library of UI components for Samotraces
 	 * @namespace Samotraces.UI
@@ -36,14 +32,12 @@
 
 	Samotraces.log = function log() {
 		if(window.console) {
-			var class_name = (this!==undefined)?[this.constructor.name]:[];
-            window.console.log.apply(console, [ "Samotraces.js" ].concat(class_name,[].slice.call(arguments)));
+            window.console.log.apply(console, [ "Samotraces.js" ].concat([].slice.call(arguments)));
 		}
 	};
 	Samotraces.debug = function debug() {
 		if(debug_mode && window.console) {
-			var class_name = (this!==undefined)?[this.constructor.name]:[];
-            window.console.log.apply(console, [ "Samotraces.js-debug" ].concat(class_name,[].slice.call(arguments)));
+            window.console.log.apply(console, [ "Samotraces.js-debug" ].concat([].slice.call(arguments)));
 		}
 	};
 	
@@ -179,8 +173,9 @@ Samotraces.Obsel.prototype = {
 	 * @summary
 	 * Returns the type of the Obsel.
 	 * @returns {String} Type of the obsel.
+	 * @todo TODO differs from KTBS API -> express it clearly
 	 */
-	get_obsel_type: function() { return this.type;	},
+	get_type: function() { return this.type; },
 	/**
 	 * Returns the time when the Obsel starts.
 	 * @returns {Number} Time when the Obsel starts.
@@ -426,95 +421,6 @@ Samotraces.Obsel.prototype = {
 
 
 
-// last: core/Collecteur.js
-/* TODO:
- * Plutot que d'attacher les Espions à des targetTypes,
- * il vaudrait mieux faire comme dans jQuery: attacher les eventsListeners à des
- * éléments de plus haut niveau (body par exemple) et dynamiquement filtrer les
- * targetTypes.
- * Cela permet de gérer du contenu de pages web dynamique.
- */
-
-Samotraces.Lib.Collecteur = function() {
-		this.espions = [];
-};
-
-Samotraces.Lib.Collecteur.prototype = {
-	addEspion: function(eventTypes,targetTypes,eventCallback,trace) {
-		espion = new Samotraces.Lib.Espion(eventTypes,targetTypes,eventCallback,trace);
-		this.espions.push(espion);
-	},
-	addIFrameEspion: function(eventTypes,targetTypes,eventCallback,trace,iframeId) {
-		espion = new Samotraces.Lib.IFrameEspion(eventTypes,targetTypes,eventCallback,trace,iframeId);
-		this.espions.push(espion);
-	},
-	start: function() {
-		this.espions.forEach(function(espion) {
-			espion.start();
-		});
-	},
-/*
-	stop: function() {
-		this.espions.each(function(espion) {
-			espion.stop();
-		});
-	},
-*/
-};
-
-Samotraces.Lib.Espion = function(eventTypes,targetTypes,eventCallback,trace) {
-	this.eventTypes = eventTypes.split(',');
-	this.targetTypes = targetTypes.split(',');
-	this.eventCallback = eventCallback;
-	this.trace = trace;
-};
-
-Samotraces.Lib.Espion.prototype = {
-	start: function() {
-		var elements;
-		this.eventTypes.forEach(function(eventType) {
-			this.targetTypes.forEach(function(targetType) {
-//console.log('addEventListener:'+targetType+':'+eventType);
-				elements = document.getElementsByTagName(targetType);
-				for(var item=0 ; item < elements.length ; item++ ) {
-					elements.item(item).addEventListener(eventType,this.eventCallback);	
-				}
-			},this);
-		},this);
-	},
-};
-
-
-Samotraces.Lib.IFrameEspion = function(eventTypes,targetTypes,eventCallback,trace,iframeId) {
-	this.iframeId = iframeId;
-	this.eventTypes = eventTypes.split(',');
-	this.targetTypes = targetTypes.split(',');
-	this.eventCallback = eventCallback;
-	this.trace = trace;
-};
-
-Samotraces.Lib.IFrameEspion.prototype = {
-	start: function() {
-		var elements;
-		var iframe_element = document.getElementById(this.iframeId);
-		this.eventTypes.forEach(function(eventType) {
-			this.targetTypes.forEach(function(targetType) {
-		//		console.log(iframe_element);
-				elements = iframe_element.contentWindow.document.getElementsByTagName(targetType);
-		//		console.log("Attached Espion on tags "+targetType+" for event "+eventType);
-		//		console.log(this.eventCallback);
-		//		console.log(elements);
-				for(var i=0 ; i < elements.length ; i++) {
-				//	console.log(i);
-				//console.log(elements.item(item).addEventListener);
-					elements.item(i).addEventListener(eventType,this.eventCallback);	// function(e) {console.log(e);});
-				}
-			},this);
-		},this);
-	}
-};
-
-
 // last: core/EventHandler.js
 /**
  * @mixin
@@ -537,12 +443,12 @@ Samotraces.Lib.IFrameEspion.prototype = {
 Samotraces.EventHandler = (function() {
 	/**
 	 * Triggers all the registred callbacks.
-	 * @memberof Samotraces.EventBuilder.prototype
+	 * @memberof Samotraces.EventHandler.prototype
 	 * @param {String} event_type
 	 *     The type of the triggered event.
 	 * @param {Object} object
 	 *     Object sent with the message to the listeners (see 
-	 *     {@link Samotraces.EventBuilder#addEventListener}).
+	 *     {@link Samotraces.EventHandler#on}).
 	 */
 	function trigger(event_type,object) {
 		Samotraces.debug("EventHandler#"+event_type+" triggered");
@@ -558,7 +464,7 @@ Samotraces.EventHandler = (function() {
 	}
 	/**
 	 * Adds a callback for the specified event
-	 * @memberof Samotraces.EventBuilder.prototype
+	 * @memberof Samotraces.EventHandler.prototype
 	 * @param {String} event_type
 	 *     The type of the event to listen to.
 	 * @param {Function} callback
@@ -570,7 +476,7 @@ Samotraces.EventHandler = (function() {
 	 *     event.type: the type of event that is triggered
 	 *     event.data: optional data that is transmitted with the event
 	 */
-	function addEventListener(event_type,callback) {
+	function on(event_type,callback) {
 		if({}.toString.call(callback) !== '[object Function]') {
 			console.log(callback);
 			throw "Callback for event "+event_type+" is not a function";
@@ -583,7 +489,7 @@ Samotraces.EventHandler = (function() {
 		// DOCUMENTED ABOVE
 		this.callbacks = this.callbacks || {};
 		this.trigger = trigger;
-		this.addEventListener = addEventListener;	
+		this.on = on;	
 		/**
 		 * EventConfig is a shortname for the 
 		 * {@link Samotraces.EventHandler.EventConfig}
@@ -603,7 +509,7 @@ Samotraces.EventHandler = (function() {
 		 */
 		for(var event_name in events) {
 			var fun = events[event_name];
-			this.addEventListener(event_name,function(e) { fun(e.data); });
+			this.on(event_name,function(e) { fun(e.data); });
 		}
 		return this;
 	};
@@ -612,16 +518,17 @@ Samotraces.EventHandler = (function() {
 
 
 
-// last: core/Ktbs.js
+// last: core/KTBS.js
 /**
- * @summary Javascript Ktbs Object that is bound to a KTBS. 
- * @class Javascript Ktbs Object that is bound to a KTBS. 
+ * @summary Javascript KTBS Object that is bound to a KTBS. 
+ * @class Javascript KTBS Object that is bound to a KTBS. 
  * @author Benoît Mathern
  * @requires jQuery framework (see <a href="http://jquery.com">jquery.com</a>)
  * @constructor
  * @augments Samotraces.EventHandler
+ * @augments Samotraces.KTBS.Resource
  * @description
- * Samotraces.Ktbs is a Javascript KTBS object that
+ * Samotraces.KTBS is a Javascript KTBS object that
  * is bound to a KTBS. This Object can be seen as an API to
  * the KTBS. Methods are available to get the list of bases
  * available in the KTBS. Access a specific base, etc.
@@ -634,23 +541,23 @@ Samotraces.EventHandler = (function() {
  * @todo update to a full JSON approach when the KTBS fully
  * supports JSON.
  *
- * @param {String}	url	Url of the KTBS to load.
+ * @param {String}	uri	URI of the KTBS to load.
  */
-Samotraces.Ktbs = function Ktbs(uri) {
+Samotraces.KTBS = function KTBS(uri) {
 //	this.url = url;
 //	this.bases = [];
 //	this.refresh();
 
 
 	// KTBS is a Resource
-	Samotraces.Ktbs.Resource.call(this,uri,uri,"");
+	Samotraces.KTBS.Resource.call(this,uri,uri,'KTBS',"");
 	this.bases = [];
 	this.builtin_methods = [];
 	this.force_state_refresh();
 
 };
 
-Samotraces.Ktbs.prototype = {
+Samotraces.KTBS.prototype = {
 /////////// OFFICIAL API
 	list_builtin_methods: function() {},
 	get_builtin_method: function() {},
@@ -658,10 +565,12 @@ Samotraces.Ktbs.prototype = {
 		return this.bases;
 	},
 	/**
+	 * @summary Returns the KTBS.Base with the given ID.
+	 * @returns Samotraces.KTBS.Base Base corresponding to the given ID
 	 * @param id {String} URI of the base
 	 */
 	get_base: function(id) {
-		return new Samotraces.Ktbs.Base(id,this.uri+id);
+		return new Samotraces.KTBS.Base(this.uri+id,id);
 	},
 	/**
 	 * @param id {String} URI of the base (optional)
@@ -695,33 +604,76 @@ Samotraces.Ktbs.prototype = {
 ///////////
 };
 
-/* MIXIN */
-Samotraces.Ktbs.Resource = (function(id,uri,label) {
-	
-	function get_type() { return this.constructor.name; }
+/**
+ * @summary Resource Objects have an uri, an id and an optional label
+ * @class Resource Objects have an uri, an id and an optional label
+ * @param {String} id Id of the Resource
+ * @param {String} url URI of the Resource
+ * @param {String} type Type of the Resource ('KTBS','Base',
+ *     'Trace','StoredTrace','ComputedTrace' or 'Obsel')
+ * @param {label} [label] Label of the Resource
+ */
+Samotraces.KTBS.Resource = (function() {
+	/**
+	 * @summary Returns the resource type of the Resource.
+	 * @memberof Samotraces.KTBS.Resource.prototype
+	 * @returns {String} Resource type ('KTBS','Base',
+	 *     'Trace','StoredTrace','ComputedTrace' or 'Obsel').
+	 */
+	function get_resource_type() { return this.type; }
 
 	// RESOURCE API
+	/**
+	 * @summary Returns the ID of the Resource.
+	 * @memberof Samotraces.KTBS.Resource.prototype
+	 * @returns {String} Resource ID.
+	 */
 	function get_id() { return this.id; }
+	/**
+	 * @summary Returns the URI of the Resource. 
+	 * @memberof Samotraces.KTBS.Resource.prototype
+	 * @returns {String} Resource URI.
+	 */
 	function get_uri() { return this.uri; }
+	/**
+	 * @summary Forces the Resource to synchronise with the KTBS.
+	 * @memberof Samotraces.KTBS.Resource.prototype
+	 * @description
+	 * Forces the Resource to synchronise with the KTBS.
+	 * This method triggers a Ajax query that will
+	 * trigger the _on_state_refresh_ method of the Resource 
+	 * on success.
+	 */
 	function force_state_refresh() {
+		
 		$.ajax({
-			url: (this.traces)?this.uri+'.json':this.uri, // tweek to make it work with KTBS on bases with .json
+			url: this.uri,
 			type: 'GET',
 			dataType: 'json',
-			error: function(jqXHR, textStatus, errorThrown) {
-				logmsg("Cannot refresh trace " + this.uri + ": ", textStatus + ' ' + JSON.stringify(errorThrown));
-			},
+			error: (function(jqXHR, textStatus, errorThrown) {
+console.log("error",this);
+				Samotraces.log("Cannot refresh "+this.get_resource_type()+" " + this.uri + ": ", textStatus + ' ' + JSON.stringify(errorThrown));
+			}).bind(this),
 			success: this._on_state_refresh_.bind(this),
-			error: function(jqXHR,textStatus,error) {
+		/*	error: function(jqXHR,textStatus,error) {
 				console.log("Error in force_state_refresh():");
 				console.log([jqXHR,textStatus,error]);
 				if(textStatus == "parsererror") {
 					console.log("--> parsererror -->");
 					console.log(jqXHR.responseText);
 				}
-			}
+			}*/
 		});
 	}
+	/**
+	 * @summary Forces the Resource to synchronise 
+	 * with at a given refreshing rate.
+	 * @memberof Samotraces.KTBS.Resource.prototype
+	 * @description
+	 * Forces the Resource to synchronise with the KTBS
+	 * every period seconds.
+	 * @param {Number} period Time in seconds between two synchronisations.
+	 */
 	function start_auto_refresh(period) {
 		this.auto_refresh_id?this.stop_auto_refresh():null;
 		this.auto_refresh_id = window.setInterval(this.force_state_refresh.bind(this), period*1000);
@@ -743,7 +695,7 @@ Samotraces.Ktbs.Resource = (function(id,uri,label) {
 			type: 'DELETE',
 			success: refresh_parent.bind(this),
 			error: function(jqXHR,textStatus,error) {
-                 throw "Cannot delete "+this.get_type()+" " + this.uri + ": " + textStatus + ' ' + JSON.stringify(errorThrown);
+                 throw "Cannot delete "+this.get_resource_type()+" " + this.uri + ": " + textStatus + ' ' + JSON.stringify(errorThrown);
 			}
 		});
 	}
@@ -753,13 +705,15 @@ Samotraces.Ktbs.Resource = (function(id,uri,label) {
 
 	// ADDED FUNCTIONS
 	function _check_change_(local_field,distant,message_if_changed) {
-		if(this[local_field] !== distant) {
+		// TODO check if this is the wanted behaviour:
+		// If distant is undefined -> what to do?
+		if(distant !== undefined && this[local_field] !== distant) {
 			this[local_field] = distant;
 			this.trigger(message_if_changed);
 		}
 	}
 
-	return function(id,uri) {
+	return function(id,uri,type,label) {
 		// a Resource is an EventHandler
 		Samotraces.EventHandler.call(this);
 		// DOCUMENTED ABOVE
@@ -767,6 +721,7 @@ Samotraces.Ktbs.Resource = (function(id,uri,label) {
 		this.id = id;
 		this.uri = uri;
 		this.label = label;
+		this.type = type;
 		// API METHODS
 		this.get_id = get_id;
 		this.get_uri = get_uri;
@@ -777,23 +732,23 @@ Samotraces.Ktbs.Resource = (function(id,uri,label) {
 		this.set_label = set_label;
 		this.reset_label = reset_label;
 		// helper
+		this.get_resource_type = get_resource_type;
 		this._check_change_ = _check_change_;
 		this.start_auto_refresh = start_auto_refresh;
 		this.stop_auto_refresh = stop_auto_refresh;
-		this.get_type = get_type();
 		return this;
 	};
 })();
 
 
 /**
- * @class Javascript KtbsBase Object that is bound to a KTBS. 
+ * @class Javascript KTBS.Base Object that is bound to a KTBS. 
  * @author Benoît Mathern
  * @requires jQuery framework (see <a href="http://jquery.com">jquery.com</a>)
  * @constructor
  * @augments Samotraces.EventHandler
  * @description
- * Samotraces.KtbsBase is a Javascript KTBS base
+ * Samotraces.KTBS.Base is a Javascript KTBS base
  * object that is bound to a KTBS. This Object can be seen
  * as an API to the KTBS. Methods are available to get the 
  * list of traces available in the KTBS base. Access a 
@@ -802,21 +757,23 @@ Samotraces.Ktbs.Resource = (function(id,uri,label) {
  * This class is a first (quick and dirty) attempt to access
  * Bases from the KTBS.
  *
- * Note: this KtbsBase object is not an actual API to the KTBS.
+ * Note: this KTBS.Base object is not an actual API to the KTBS.
  *
  * @todo update to a full JSON approach when the KTBS fully
  * supports JSON.
  *
- * @param {String}	url	Url of the KTBS to load.
+ * @param {String}	uri	URI of the Base to load.
+ * @param {String}	[id]	ID of the Base to load.
  */
-Samotraces.Ktbs.Base = function Base(id,uri) {
+Samotraces.KTBS.Base = function Base(uri,id) {
 	// KTBS.Base is a Resource
-	Samotraces.Ktbs.Resource.call(this,id,uri,"");
+	if(id === undefined) { id = uri; }
+	Samotraces.KTBS.Resource.call(this,id,uri,'Base',"");
 	this.traces = [];
 	this.force_state_refresh();
 };
 
-Samotraces.Ktbs.Base.prototype = {
+Samotraces.KTBS.Base.prototype = {
 	get: function(id) {},
 	list_traces: function() {
 		return this.traces;
@@ -828,7 +785,7 @@ Samotraces.Ktbs.Base.prototype = {
 			"@type":	"StoredTrace",
 			"@id":		id+"/"
 		};
-		new_trace.hasModel = (model==undefined)?"http://liris.cnrs.fr/silex/2011/simple-trace-model/":model;
+		new_trace.hasModel = (model==undefined)?"http://liris.cnrs.fr/silex/2011/simple-trace-model":model;
 		new_trace.origin = (origin==undefined)?"1970-01-01T00:00:00Z":origin;
 //			if(origin==undefined) new_trace.origin = origin;
 		if(default_subject==undefined) new_trace.default_subject = default_subject;
@@ -846,9 +803,6 @@ Samotraces.Ktbs.Base.prototype = {
 		});
 	},
 
-	create_base: function(id, label) {
-	},
-
 	create_computed_trace: function(id,method,parameters,sources,label) {},
 	create_model: function(id,parents,label) {},
 	create_method: function(id,parent,parameters,label) {},
@@ -860,7 +814,7 @@ Samotraces.Ktbs.Base.prototype = {
 	},
 /////////// ADDED / API
 	get_trace: function(id) {
-		return new Samotraces.Ktbs.Trace(id,this.uri+id);
+		return new Samotraces.KTBS.Trace(this.uri+id+'/',id);
 	},
 ////////////
 };
@@ -872,7 +826,7 @@ Samotraces.Ktbs.Base.prototype = {
  * @constructor
  * @mixes Samotraces.EventHandler
  * @description
- * Samotraces.KtbsTrace is a Javascript Trace object
+ * Samotraces.KTBS.Trace is a Javascript Trace object
  * that is bound to a KTBS trace. This Object can be seen as
  * an API to the KTBS trace. Methods are available to get 
  * the Obsels from the KTBS trace, create new Obsels, etc.
@@ -889,11 +843,15 @@ Samotraces.Ktbs.Base.prototype = {
  * @todo update to a full JSON approach when the KTBS fully
  * supports JSON.
  *
- * @param {String}	url	Url of the KTBS trace to load.
+ * @param {String}	uri	URI of the KTBS trace to load.
+ * @param {String}	[id]	ID of the KTBS trace to load.
  */
-Samotraces.Ktbs.Trace = function Trace(id,uri) {
-	// KTBS.Base is a Resource
-	Samotraces.Ktbs.Resource.call(this,id,uri,"");
+Samotraces.KTBS.Trace = function Trace(uri,id) {
+	// KTBS.Trace is a Resource
+	if(id === undefined) { id = uri; }
+	Samotraces.KTBS.Resource.call(this,id,uri,'Base',"");
+
+	this.temp = {}; // attribute used to store actions made by the user on the trace while not knowing if they are allowed. e.g., create_obsel, when we don't know yet if the Trace is a StoredTrace because the KTBS didn't reply yet.
 
 	this.default_subject = "";
 	this.model_uri = "";
@@ -905,19 +863,20 @@ Samotraces.Ktbs.Trace = function Trace(id,uri) {
 	this.force_state_refresh();
 };
 
-//Samotraces.Ktbs.Trace.prototype = Samotraces.LocalTrace.prototype;
+//Samotraces.KTBS.Trace.prototype = Samotraces.LocalTrace.prototype;
 
 
-Samotraces.Ktbs.Trace.prototype = {
+Samotraces.KTBS.Trace.prototype = {
 /////////// OFFICIAL API
 	get_base: function() { return this.base_uri; },
 	get_model: function() { return this.model_uri; },
 	get_origin: function() { return this.origin; },
 	list_source_traces: function() {},
 	list_transformed_traces: function() {},
+	// @todo TODO add an optional CALLBACK
 	list_obsels: function(begin,end,reverse) {
 		if(this.obsel_list_uri === "") {
-			console.log("Error in Ktbs:Trace:list_obsels() unknown uri");
+			console.log("Error in KTBS:Trace:list_obsels() unknown uri");
 			return false;
 		}
 		$.ajax({
@@ -945,22 +904,33 @@ Samotraces.Ktbs.Trace.prototype = {
 		}
 	},
 
-	get_obsel: function(id) {},
-///////////
-	_on_state_refresh_: function(data) {
-//		console.log(data);
-		this._check_change_('default_subject', data.hasDefaultSubject, '');
-		this._check_change_('model_uri', data.hasModel, '');
-		this._check_change_('obsel_list_uri', data.hasObselList, 'trace:update');
-		this._check_change_('base_uri', data.inBase, '');
-		this._check_change_('origin', data.origin, '');
+	/**
+	 * Retrieve an obsel in the trace from its ID.
+	 * @param {String} id ID of the Obsel to retrieve
+	 * @returns {Obsel} Obsel that corresponds to this ID
+	 *     or undefined if the obsel was not found.
+	 * @todo TODO if undefined -> send a query to the KTBS
+	 * @todo TODO add an optional CALLBACK
+	 */	
+	get_obsel: function(id) {
+		var obs;
+		this.obsel_list.forEach(function(o) {
+			if(o.get_id() == id) { obs = o; }
+		});
+		if(obs === undefined) {
+			// sends a query to find the obsel
+			jQuery.ajax({
+					// TODO ideally JSON... When KTBS supports it!
+					url: this.uri+id, 
+					dataType: 'json',
+					type: 'GET',
+					success: this._parse_get_obsel_.bind(this),
+				});
+		}
+		return obs;
 	},
-///////////
-	_on_refresh_obsel_list_: function(data) {
-//		console.log(data);
-		var id, label, type, begin, end, attributes, obs;
-		var new_obsel_loaded = false;
-		data.obsels.forEach(function(el,key) {
+	_parse_get_obsel_: function(data,textStatus,jqXHR) {
+/*
 			var attr = {};
 			attr.id = el['@id'];
 			attr.trace = this;
@@ -974,15 +944,108 @@ Samotraces.Ktbs.Trace.prototype = {
 			delete(attr.attributes['@type']);
 			delete(attr.attributes['begin']);
 			delete(attr.attributes['end']);
-			obs = new Samotraces.Ktbs.Obsel(attr);
+			obs = new Samotraces.KTBS.Obsel(attr);
 			
 			if(! this._check_obsel_loaded_(obs)) {
 				new_obsel_loaded = true;
 			}
+*/
+		var obs = {
+			attributes: {}
+		};
+
+		// OBSEL ID
+		obs.id = data["@id"];
+		if(obs.id.substr(0,2) == "./") { obs.id = obs.id.substr(2); }
+		
+		// OBSEL TRACE
+		// data.hasTrace;
+		obs.trace = this;
+
+		// OBSEL TYPE
+		// data["@type"]; // TODO BUG KTBS -> USE "m:type" instead
+		// data["m:type"];
+		obs.type = data["@type"].substr(2);
+	
+		// DELETING PROPERTIES THAT HAVE ALREADY BEEN COPIED
+		delete data["@id"];
+		delete data.hasTrace;
+		delete data["@type"];
+		//delete data["m:type"];
+		
+		// ATTRIBUTES
+		for(var attr in data) {
+			if(attr.substr(0,2) == "m:") { // TODO this is not generic!!!!
+				obs.attributes[attr.substr(2)] = data[attr];
+			}
+		}
+	//console.log(data,obs);
+		var o = new Samotraces.KTBS.Obsel(obs);
+		if(!this._check_obsel_loaded_(o)) { // TODO first approximation
+			this.trigger('trace:create:obsel',o);
+		}
+	},
+
+///////////
+	_on_state_refresh_: function(data) {
+//		console.log(data);
+		this._check_and_update_trace_type_(data['@type']);
+		this._check_change_('default_subject', data.hasDefaultSubject, '');
+		this._check_change_('model_uri', data.hasModel, '');
+		this._check_change_('obsel_list_uri', data.hasObselList, 'trace:update');
+		this._check_change_('base_uri', data.inBase, '');
+		this._check_change_('origin', data.origin, '');
+	},
+	_update_method_: function(trace_type,method_name) {
+		this[method_name] = this[trace_type+"_methods"][method_name];
+		if(this.temp[method_name] !== undefined) {
+			Samotraces.debug("Unfilling calls to method "+method_name);
+			this.temp[method_name].forEach(function(param) {
+				this[method_name](param);
+			},this);
+		}
+	},
+	_check_and_update_trace_type_: function(type) {
+		if(this.type !== type) {
+			Samotraces.debug("Trace type = "+type);
+			for(var method_name in this[type+"_methods"]) {
+				this._update_method_(type,method_name);
+			}
+			this.type = type;
+		}
+	},
+///////////
+	_on_refresh_obsel_list_: function(data) {
+//		console.log(data);
+		var id, label, type, begin, end, attributes, obs;
+		var new_obsel_loaded = false;
+		data.obsels.forEach(function(el,key) {
+			this._parse_get_obsel_(el);
+/*
+			var attr = {};
+			attr.id = el['@id'];
+			attr.trace = this;
+			attr.label = el['http://www.w3.org/2000/01/rdf-schema#label'] || undefined;
+			attr.type = el['@type'];
+			attr.begin = el['begin'];
+			attr.end = el['end'];
+			attr.attributes = el;
+			delete(attr.attributes['@id']);
+			delete(attr.attributes['http://www.w3.org/2000/01/rdf-schema#label']);
+			delete(attr.attributes['@type']);
+			delete(attr.attributes['begin']);
+			delete(attr.attributes['end']);
+			obs = new Samotraces.KTBS.Obsel(attr);
+			
+			if(! this._check_obsel_loaded_(obs)) {
+				new_obsel_loaded = true;
+			}
+*/
 		},this);
-		if(new_obsel_loaded) {
+/*		if(new_obsel_loaded) {
 			this.trigger('trace:update',this.traceSet);
 		}
+*/
 	},
 	_check_obsel_loaded_: function(obs) {
 		if(this.obsel_list.some(function(o) {
@@ -991,45 +1054,91 @@ Samotraces.Ktbs.Trace.prototype = {
 			return true;
 		} else {
 			this.obsel_list.push(obs);
-			this._compatibility_();
 			return false;
 		}
 	},
-///////////
-	_compatibility_: function() {
-		this.traceSet = this.obsel_list;
-	}
+	StoredTrace_methods: {
+		set_model: function(model) {},
+		set_origin: function(origin) {},
+		get_default_subject: function() { return this.default_subject; },
+		set_default_subject: function(subject) {},
+		create_obsel: function(params) {
+			// LOCAL TRACE
+			//var obs = new Samotraces.Obsel(obsel_params);
+			// KTBS BOGUE
+			var json_obsel = {
+				"@context":	[
+					"http://liris.cnrs.fr/silex/2011/ktbs-jsonld-context",
+       					{ "m": "http://liris.cnrs.fr/silex/2011/simple-trace-model#" }
+				],
+				"@type":	"m:"+params.type, // fixed: "SimpleObsel", // TODO KTBS BUG TO FIX
+				hasTrace:	"",
+				subject:	params.hasOwnProperty("subject")?params.subject:this.get_default_subject(),
+				//"m:type":	params.type
+			};
+			//console.log(params.hasOwnProperty("subject")?params.subject:this.get_default_subject(),params.hasOwnProperty("subject"),params.subject,this.get_default_subject());
+			if(params.hasOwnProperty("begin")) { json_obsel.begin=params.begin; }
+			if(params.hasOwnProperty("end")) { json_obsel.begin=params.end;}
+			if(params.hasOwnProperty("attributes")) {
+				for(var attr in params.attributes) {
+					json_obsel["m:"+attr] = params.attributes[attr];
+				}
+			}
+			function _on_create_obsel_success_(data,textStatus,jqXHR) {
+				var url = jqXHR.getResponseHeader('Location');
+				var url_array = url.split('/');
+				var obsel_id = url_array[url_array.length -1];
+				//this.get_obsel(obsel_id);
+				// Optimisation: do not do a GET query to get the OBSEL
+				// The Obsel parameters are already known in param
+				// We just need to add the ID.
+				params.id = obsel_id;
+				params.trace = this;
+				var o = new Samotraces.KTBS.Obsel(params);
+				if(!this._check_obsel_loaded_(o)) {
+					this.trigger('trace:create:obsel',o);
+				}
+			}
+			jQuery.ajax({
+					url: this.uri,
+					type: 'POST',
+					contentType: 'application/json',
+					success: _on_create_obsel_success_.bind(this),
+					data: JSON.stringify(json_obsel)
+				});
+		}
+	},
+
+	ComputedTrace_methods: {
+		set_method: function(method) {},
+		list_parameters: function(include_inherited) {},
+		get_parameter: function(key) {},
+		set_parameter: function(key, value) {},
+		del_parameter: function(key) {}
+	},
+
+	// TEMPORARY METHODS	
+	create_obsel: function(obsel_params) {
+		Samotraces.debug("Trace type not know yet -> file the call to create_obsel()");
+		if(!this.create_obsel.hasOwnProperty('create_obsel')) {
+			this.temp.create_obsel = [];
+		}
+		this.temp.create_obsel.push[obsel_params];
+	},
+
 };
-// */
 
-/*
-Samotraces.Ktbs.StoredTrace = function() {
-	set_model: function(model) {},
-	set_origin: function(origin) {},
-	get_default_subject: function() {},
-	set_default_subject: function(subject:str) {},
-	create_obsel: function(id, type, begin, end, subject, attributes, relations, inverse_relations, source_obsels, label) {}
-}
 
-Samotraces.Ktbs.ComputedTrace = function() {
-	set_method: function(method) {},
-	list_parameters: function(include_inherited) {},
-	get_parameter: function(key) {},
-	set_parameter: function(key, value) {},
-	del_parameter: function(key) {}
-}
-*/
 
 /**
  * @augments Samotraces.Obsel
  * @todo TODO update set_methods
  * -> sync with KTBS instead of local change
  */
-Samotraces.Ktbs.Obsel = function Obsel(param) {
+Samotraces.KTBS.Obsel = function Obsel(param) {
 	// KTBS.Base is a Resource
-	Samotraces.Ktbs.Resource.call(this,param.id,param.uri,param.label || "");
+	Samotraces.KTBS.Resource.call(this,param.id,param.uri,'Obsel',param.label || "");
 
-//	this._private_check_error(param,'id');
 	this._private_check_error(param,'trace');
 	this._private_check_error(param,'type');
 	this._private_check_default(param,'begin',	Date.now());
@@ -1038,196 +1147,16 @@ Samotraces.Ktbs.Obsel = function Obsel(param) {
 	this._private_check_undef(param,'relations',	[]); // TODO ajouter rel à l'autre obsel
 	this._private_check_undef(param,'inverse_relations',	[]); // TODO ajouter rel à l'autre obsel
 	this._private_check_undef(param,'source_obsels',		[]);
-//	this._private_check_undef(param,'label',		"");
 }
 
-Samotraces.Ktbs.Obsel.prototype = Samotraces.Obsel.prototype;
+Samotraces.KTBS.Obsel.prototype = Samotraces.Obsel.prototype;
 
-
-
-
-// last: core/Ktbs4jsTrace.js
-/**
- * @summary Javascript Trace Object that is bound to a KTBS trace. 
- * @class Javascript Trace Object that is bound to a KTBS trace. 
- * @author Benoît Mathern
- * @requires jQuery framework (see <a href="http://jquery.com">jquery.com</a>)
- * @requires ktbs4js (see <a href="https://github.com/oaubert/ktbs4js">on github</a>)
- * @constructor
- * @augments Samotraces.Lib.EventHandler
- * @description
- * Samotraces.Lib.Ktbs4jsTrace is a Javascript Trace object
- * that is bound to a KTBS trace. This Object wraps the 
- * ktbs4js API to the KTBS to make it compatible with the
- * Samotraces framework.
- *
- * @param {String}	url	Url of the KTBS trace to load.
- */
-Samotraces.Lib.Ktbs4jsTrace = function(url) {
-	// Addint the Observable trait
-	Samotraces.Lib.EventHandler.call(this);
-
-	this.trace = tracemanager.init_trace('trace1',{url: url, syncmode: 'sync', format: 'turtle'});
-	this.traceSet = this.trace.obsels;
-	$(this.trace).on('updated',this.onUpdate.bind(this));
-	this.trace.force_state_refresh();
+/*
+Samotraces.KTBS.Obsel.prototype.get_ktbs_status = function() {
+	return this.ktbs_status
 };
+*/
 
-Samotraces.Lib.Ktbs4jsTrace.prototype = {
-	onUpdate: function() {
-		this.traceSet = this.trace.obsels;
-		this.trigger('trace:update',this.obsels);
-	},
-	newObsel: function(type,timeStamp,attributes) {
-		this.trace.trace(type,attributes,timeStamp);
-	},
-
-};
-
-
-
-// last: core/KtbsBogueTrace.js
-/**
- * @summary JavaScript Trace class connected to a kTBS
- * @class JavaScript Trace class connected to a kTBS
- * @augments Samotraces.Lib.Trace
- */
-Samotraces.Lib.KtbsBogueTrace = function(url) {
-	// Addint the Observable trait
-	Samotraces.Lib.EventHandler.call(this);
-	this.url = url;
-	var current_trace = this;
-
-	/* Array d'obsels */
-	this.traceSet = [];
-
-	this.refreshObsels();
-};
-
-Samotraces.Lib.KtbsBogueTrace.prototype = {
-	newObsel: function(type,timeStamp,attributes) {
-		var newObselOnSuccess = function(data,textStatus,jqXHR) {
-			var url = jqXHR.getResponseHeader('Location');
-			var url_array = url.split('/');
-			var obsel_id = url_array[url_array.length -1];
-			this.getNewObsel(obsel_id);
-		};
-
-		var ttl_obsel = '@prefix : <http://liris.cnrs.fr/silex/2009/ktbs#> .\n@prefix m: <http://liris.cnrs.fr/silex/2011/simple-trace-model/> .\n';
-		ttl_obsel += '[ a m:SimpleObsel ;\n';
-		ttl_obsel += '  :hasTrace <> ;\n';
-		ttl_obsel += '  m:type "'+type+'" ;\n';
-		var readable_timestamp = new Date(timeStamp).toString();
-		ttl_obsel += '  m:timestamp "'+readable_timestamp+'" ;\n';
-		for(var key in attributes) {
-			ttl_obsel += '  m:'+key+' "'+attributes[key]+'" ;\n';
-		}
-
-		ttl_obsel += '].';
-		jQuery.ajax({
-				url: this.url,
-				type: 'POST',
-				contentType: 'text/turtle',
-				success: newObselOnSuccess.bind(this),
-				data: ttl_obsel
-			});
-	},
-
-	updateObsel: function(old_obs,new_obs) {
-		console.log('Method KtbsTrace:updateObsel() not implemented yet...');
-	},
-	removeObsel: function(obs) {
-		console.log('Method KtbsTrace:removeObsel() not implemented yet...');
-	},
-	getObsel: function(obs) {
-		console.log('Method KtbsTrace:getObsel() not implemented yet...');
-	},
-	
-	getNewObsel: function(id) {
-		jQuery.ajax({
-				url: this.url+id+'.xml',
-				type: 'GET',
-				success: this.getNewObselSuccess.bind(this),
-			});
-	},
-	/**
-	 * @fires Samotraces.Lib.Trace#newObsel
-	 */
-	getNewObselSuccess: function(data,textStatus,jqXHR) {
-		// workaround to get the id eventhough the ktbs doesn't return it.
-		var url = jqXHR.getResponseHeader('Content-Location');
-		var url_array = url.split('/');
-		var obsel_id = url_array[url_array.length -1];
-		if(obsel_id.endsWith('.xml')) {
-			obsel_id = obsel_id.substr(0,obsel_id.length-4);
-		}
-				
-		var raw_json = Samotraces.Tools.xmlToJson(data);
-		var obsels = [];
-		var obs;
-		el = raw_json['rdf:RDF']['rdf:Description'];
-		obs = this.rdf2obs(el);
-		if(obs !== undefined) {
-			obs.id = obsel_id; 
-			this.traceSet.push(obs);
-			this.trigger('newObsel',obs);
-		}
-	},
-
-	refreshObsels: function() {
-		jQuery.ajax({
-				url: this.url+'@obsels.xml',
-				type: 'GET',
-				contentType: 'text/turtle',
-				success: this.refreshObselsSuccess.bind(this)
-			});
-	},
-	/**
-	 * @fires Samotraces.Lib.Trace#trace:update
-	 */
-	refreshObselsSuccess: function(data) {
-			var raw_json = Samotraces.Tools.xmlToJson(data);
-			var obsels = [];
-			raw_json['rdf:RDF']['rdf:Description'].forEach(
-				function(el,key) {
-					var obs = this.rdf2obs(el);
-					if(obs !== undefined) {
-						obsels.push(obs);
-					}
-				},this);
-			this.traceSet = obsels;
-			this.trigger('trace:update',this.traceSet);
-	},
-
-	rdf2obs: function(el) {
-		var obs;
-		if( el['ns1:type'] !== undefined ) {
-			attributes = {};
-			var id = '';
-			var type = '';
-			var timestamp = '';
-			var attributes = {};
-			for(var key in el) {
-				switch(key) {
-					case '@attributes':
-						id = el[key]['rdf:about'];
-						break;
-					case 'ns1:type':
-						type = el[key]['#text'];
-						break;
-					case 'ns1:timestamp':
-						timestamp = el[key]['#text'];
-						break;
-					default:
-						attributes[key] = el[key]['#text'];
-						break;
-				}
-			}
-			obs = new Samotraces.Lib.Obsel(id,timestamp,type,attributes);
-		}
-		return obs;
-	},
-};
 
 
 // last: core/LocalTrace.js
@@ -1295,9 +1224,11 @@ Samotraces.LocalTrace.prototype = {
 	 * @todo use KTBS abstract API.
 	 */	
 	get_obsel: function(id) {
-		return this.obsel_list.find(function(o) {
-			return (o.get_id() == id);
+		var obs;
+		this.obsel_list.forEach(function(o) {
+			if(o.get_id() == id) { obs = o; }
 		});
+		return obs;
 	},
 	set_model: function(model) {
 		this.model = model;
@@ -1343,7 +1274,7 @@ Samotraces.LocalTrace.prototype = {
 			trace.list_obsels().forEach(function(o) {
 				transformed_trace.create_obsel(o.to_Object());
 			});
-			trace.addEventListener('trace:create:obsel',function(e) {
+			trace.on('trace:create:obsel',function(e) {
 				var o = e.data;
 				transformed_trace.create_obsel(o.to_Object());
 			});
@@ -1365,7 +1296,7 @@ console.log(opt);
 					}
 				}
 			});
-			trace.addEventListener('trace:create:obsel',function(e) {
+			trace.on('trace:create:obsel',function(e) {
 				var o = e.data;
 				if(opt.types.some(function(type) {return type === o.get_obsel_type();})) {
 					if(opt.mode === "keep") {
@@ -1589,8 +1520,8 @@ Samotraces.TimeWindow = function TimeWindow(opt) {
 	} else if (opt.timer !== undefined && opt.width  !== undefined) {
 		this.set_width(opt.width,opt.timer.time)
 		this.timer = opt.timer;
-		this.timer.addEventListener('timer:update',this._private_updateTime.bind(this));
-		this.timer.addEventListener('timer:play:update',this._private_updateTime.bind(this));
+		this.timer.on('timer:update',this._private_updateTime.bind(this));
+		this.timer.on('timer:play:update',this._private_updateTime.bind(this));
 	} else {
 		throw('Samotraces.TimeWindow error. Arguments could not be parsed.');
 	}
@@ -2163,9 +2094,9 @@ Samotraces.UI.Widgets.ObselInspector = function(html_id,obsel_selector) {
 	this.add_class('Widget-ObselInspector');
 
 	this.obsel = obsel_selector;
-	this.obsel.addEventListener('selection:add',this.inspect.bind(this));
-	this.obsel.addEventListener('selection:empty',this.close.bind(this));
-	this.obsel.addEventListener('selection:remove',this.close.bind(this));
+	this.obsel.on('selection:add',this.inspect.bind(this));
+	this.obsel.on('selection:empty',this.close.bind(this));
+	this.obsel.on('selection:remove',this.close.bind(this));
 
 	this.init_DOM();
 };
@@ -2194,7 +2125,11 @@ Samotraces.UI.Widgets.ObselInspector.prototype = {
 		var attributes = obs.attributes;
 		
 		var li_element = document.createElement('li');
-		li_element.appendChild(document.createTextNode('id: '+ obs.id));
+		li_element.appendChild(document.createTextNode('id: '+ obs.get_id()));
+		this.datalist_element.appendChild(li_element);
+
+		li_element = document.createElement('li');
+		li_element.appendChild(document.createTextNode('type: '+ obs.get_type()));
 		this.datalist_element.appendChild(li_element);
 
 		li_element = document.createElement('li');
@@ -2258,8 +2193,8 @@ Samotraces.UI.Widgets.ReadableTimeForm = function(html_id,timer) {
 	this.add_class('Widget-ReadableTimeForm');
 
 	this.timer = timer;
-	this.timer.addEventListener('timer:update',this.refresh.bind(this));
-	this.timer.addEventListener('timer:play:update',this.refresh.bind(this));
+	this.timer.on('timer:update',this.refresh.bind(this));
+	this.timer.on('timer:play:update',this.refresh.bind(this));
 
 	this.init_DOM();
 	this.refresh({data: this.timer.time});
@@ -2415,8 +2350,8 @@ Samotraces.UI.Widgets.TimeForm = function(html_id,timer) {
 	Samotraces.UI.Widgets.Widget.call(this,html_id);
 
 	this.timer = timer;
-	this.timer.addEventListener('timer:update',this.refresh.bind(this));
-	this.timer.addEventListener('timer:play:update',this.refresh.bind(this));
+	this.timer.on('timer:update',this.refresh.bind(this));
+	this.timer.on('timer:play:update',this.refresh.bind(this));
 
 	this.init_DOM();
 	this.refresh({data: this.timer.time});
@@ -2525,9 +2460,9 @@ Samotraces.UI.Widgets.TimePlayer = function(html_id,timer,videos) {
 	});
 
 	this.timer = timer;
-	this.timer.addEventListener('timer:update',this.onUpdateTime.bind(this));
-	this.timer.addEventListener('timer:play',this.onPlay.bind(this));
-	this.timer.addEventListener('timer:pause',this.onPause.bind(this));
+	this.timer.on('timer:update',this.onUpdateTime.bind(this));
+	this.timer.on('timer:play',this.onPlay.bind(this));
+	this.timer.on('timer:pause',this.onPause.bind(this));
 
 
 	this.init_DOM();
@@ -2607,11 +2542,11 @@ Samotraces.UI.Widgets.TimeSlider = function(html_id,time_window,timer) {
 	$(window).resize(this.draw.bind(this));
 
 	this.timer = timer;
-	this.timer.addEventListener('timer:update',this.draw.bind(this));
-	this.timer.addEventListener('timer:play:update',this.refresh.bind(this));
+	this.timer.on('timer:update',this.draw.bind(this));
+	this.timer.on('timer:play:update',this.refresh.bind(this));
 
 	this.time_window = time_window;
-	this.time_window.addEventListener('tw:update',this.draw.bind(this));
+	this.time_window.on('tw:update',this.draw.bind(this));
 
 	// update slider style
 	this.slider_offset = 0;
@@ -2732,14 +2667,14 @@ Samotraces.UI.Widgets.TraceDisplayIcons = function(divId,trace,time_window,optio
 	$(window).resize(this.refresh_x.bind(this));
 
 	this.trace = trace;
-	this.trace.addEventListener('trace:update',this.draw.bind(this));
-	this.trace.addEventListener('trace:create:obsel',this.draw.bind(this));
-	this.trace.addEventListener('trace:remove:obsel',this.draw.bind(this));
-	this.trace.addEventListener('trace:edit:obsel',this.obsel_redraw.bind(this));
+	this.trace.on('trace:update',this.draw.bind(this));
+	this.trace.on('trace:create:obsel',this.draw.bind(this));
+	this.trace.on('trace:remove:obsel',this.draw.bind(this));
+	this.trace.on('trace:edit:obsel',this.obsel_redraw.bind(this));
 
 	this.window = time_window;
-	this.window.addEventListener('tw:update',this.refresh_x.bind(this));
-	this.window.addEventListener('tw:translate',this.translate_x.bind(this));
+	this.window.on('tw:update',this.refresh_x.bind(this));
+	this.window.on('tw:translate',this.translate_x.bind(this));
 
 //	this.obsel_selector = obsel_selector;
 //	this.window.addEventListener('',this..bind(this));
@@ -2890,7 +2825,14 @@ Samotraces.UI.Widgets.TraceDisplayIcons.prototype = {
 
 	draw: function(e) {
 		if(e) {
-			this.data = this.trace.list_obsels();
+			switch(e.type) {
+				case "trace:update":
+					this.data = this.trace.list_obsels();
+					break;
+				default:
+					this.data = this.trace.obsel_list; // do not want to trigger the refreshing of list_obsels()...
+					break;
+				}
 		}
 
 		this.d3Obsels()
@@ -2899,7 +2841,7 @@ Samotraces.UI.Widgets.TraceDisplayIcons.prototype = {
 		this.d3Obsels()
 			.enter()
 			.append('image')
-			.attr('class','Σ-obsel')
+			.attr('class','Samotraces-obsel')
 			.attr('x',this.options.x)
 			.attr('y',this.options.y)
 			.attr('width',this.options.width)
@@ -2909,8 +2851,8 @@ Samotraces.UI.Widgets.TraceDisplayIcons.prototype = {
 		// events defined by users with jQuery
 		$('image',this.element).each(function(i,el) {
 			$.data(el,{
-				'Σ-type': 'obsel',
-				'Σ-data': d3.select(el).datum()
+				'Samotraces-type': 'obsel',
+				'Samotraces-data': d3.select(el).datum()
 			});
 		});
 	},
@@ -2976,11 +2918,11 @@ Samotraces.UI.Widgets.TraceDisplayObselOccurrences = function(divId,trace,time_w
 	$(window).resize(this.refresh_x.bind(this));
 
 	this.trace = trace;
-	this.trace.addEventListener('trace:update',this.draw.bind(this));
-	this.trace.addEventListener('newObsel',this.addObsel.bind(this));
+	this.trace.on('trace:update',this.draw.bind(this));
+	this.trace.on('newObsel',this.addObsel.bind(this));
 
 	this.window = time_window;
-	this.window.addEventListener('tw:update',this.refresh_x.bind(this));
+	this.window.on('tw:update',this.refresh_x.bind(this));
 
 
 	this.init_DOM();
@@ -3274,8 +3216,8 @@ Samotraces.UI.Widgets.WindowScale = function(html_id,time_window,is_javascript_d
 
 	this.window = time_window;
 //	time_window.addObserver(this);
-	this.window.addEventListener('tw:update',this.draw.bind(this));
-	this.window.addEventListener('tw:translate',this.draw.bind(this));
+	this.window.on('tw:update',this.draw.bind(this));
+	this.window.on('tw:translate',this.draw.bind(this));
 
 	// trying to guess if time_window is related to a Date() object
 	if(this.window.start > 1000000000) { // 1o^9 > 11 Jan 1970 if a Date object
@@ -3355,11 +3297,11 @@ Samotraces.UI.Widgets.WindowSlider = function(html_id,wide_window,slider_window)
 	$(window).resize(this.draw.bind(this));
 
 	this.wide_window = wide_window;
-	this.wide_window.addEventListener('tw:update',this.draw.bind(this));
-	this.wide_window.addEventListener('tw:translate',this.draw.bind(this));
+	this.wide_window.on('tw:update',this.draw.bind(this));
+	this.wide_window.on('tw:translate',this.draw.bind(this));
 	this.slider_window = slider_window;
-	this.slider_window.addEventListener('tw:update',this.draw.bind(this));
-	this.slider_window.addEventListener('tw:translate',this.draw.bind(this));
+	this.slider_window.on('tw:update',this.draw.bind(this));
+	this.slider_window.on('tw:translate',this.draw.bind(this));
 
 	this.slider_offset = 0;
 	this.width = 0;
@@ -3406,10 +3348,7 @@ Samotraces.UI.Widgets.WindowSlider.prototype = {
 
 // last: UI/Widgets/ktbs/ListBases.js
 
-// Check if relevant namespaces exist - or create them.
-var Samotraces = Samotraces || {};
-Samotraces.Widgets = Samotraces.Widgets || {};
-Samotraces.Widgets.ktbs = Samotraces.Widgets.ktbs || {};
+Samotraces.UI.Widgets.ktbs = Samotraces.UI.Widgets.ktbs || {};
 
 /**
  * @class Generic Widget for visualising the available bases of a KTBS.
@@ -3422,30 +3361,30 @@ Samotraces.Widgets.ktbs = Samotraces.Widgets.ktbs || {};
  * @param {String}	html_id
  *     Id of the DIV element where the widget will be
  *     instantiated
- * @param {Samotraces.Lib.Ktbs} ktbs
- *     Ktbs to bind to.
+ * @param {Samotraces.Lib.KTBS} ktbs
+ *     KTBS to bind to.
  * @param {Samotraces.Lib.EventHandler.EventConfig} [events]
  *     Events to listen to and their corresponding callbacks.
  */
-Samotraces.Widgets.ktbs.ListBases = function(html_id,ktbs,events) {
+Samotraces.UI.Widgets.ktbs.ListBases = function(html_id,ktbs,events) {
 	// WidgetBasicTimeForm is a Widget
-	Samotraces.Widgets.Widget.call(this,html_id);
-	Samotraces.Lib.EventHandler.call(this,events);
+	Samotraces.UI.Widgets.Widget.call(this,html_id);
+	Samotraces.EventHandler.call(this,events);
 	this.add_class('Widget-ListBases');
 
 	this.ktbs = ktbs;
-	ktbs.addEventListener('ktbs:update',this.refresh.bind(this));
+	ktbs.on('ktbs:update',this.refresh.bind(this));
 
 	this.init_DOM();
 };
 
-Samotraces.Widgets.ktbs.ListBases.prototype = {
+Samotraces.UI.Widgets.ktbs.ListBases.prototype = {
 	init_DOM: function() {
 		this.element.innerHTML = "";
-		$(this.element).append('<h2>Ktbs root: '+this.ktbs.get_uri()+'</h2>');
+		$(this.element).append('<h2>KTBS root: '+this.ktbs.get_uri()+'</h2>');
 /*
 		var title = document.createElement('h2');
-		var title_text = document.createTextNode('Ktbs root: '+this.ktbs.get_uri());
+		var title_text = document.createTextNode('KTBS root: '+this.ktbs.get_uri());
 		title.appendChild(title_text);
 		this.element.appendChild(title);
 */
@@ -3512,11 +3451,7 @@ Samotraces.Widgets.ktbs.ListBases.prototype = {
 
 
 // last: UI/Widgets/ktbs/ListTracesInBases.js
-
-// Check if relevant namespaces exist - or create them.
-var Samotraces = Samotraces || {};
-Samotraces.Widgets = Samotraces.Widgets || {};
-Samotraces.Widgets.ktbs = Samotraces.Widgets.ktbs || {};
+Samotraces.UI.Widgets.ktbs = Samotraces.UI.Widgets.ktbs || {};
 
 /**
  * @class Generic Widget for visualising the available bases of a KTBS.
@@ -3529,24 +3464,24 @@ Samotraces.Widgets.ktbs = Samotraces.Widgets.ktbs || {};
  * @param {String}	html_id
  *     Id of the DIV element where the widget will be
  *     instantiated
- * @param {Samotraces.Lib.Ktbs.Base} ktbs_base
- *     Ktbs Base to bind to.
+ * @param {Samotraces.Lib.KTBS.Base} ktbs_base
+ *     KTBS Base to bind to.
  * @param {Samotraces.Lib.EventHandler.EventConfig} [events]
  *     Events to listen to and their corresponding callbacks.
  */
-Samotraces.Widgets.ktbs.ListTracesInBases = function(html_id,ktbs_base,events) {
+Samotraces.UI.Widgets.ktbs.ListTracesInBases = function(html_id,ktbs_base,events) {
 	// WidgetBasicTimeForm is a Widget
-	Samotraces.Widgets.Widget.call(this,html_id);
-	Samotraces.Lib.EventHandler.call(this,events);
+	Samotraces.UI.Widgets.Widget.call(this,html_id);
+	Samotraces.EventHandler.call(this,events);
 	this.add_class('Widget-ListTraces');
 
 	this.base = ktbs_base;
-	this.base.addEventListener('base:update',this.refresh.bind(this));
+	this.base.on('base:update',this.refresh.bind(this));
 
 	this.init_DOM();
 };
 
-Samotraces.Widgets.ktbs.ListTracesInBases.prototype = {
+Samotraces.UI.Widgets.ktbs.ListTracesInBases.prototype = {
 	init_DOM: function() {
 		this.element.innerHTML = "";
 
