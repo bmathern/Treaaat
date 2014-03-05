@@ -3,10 +3,11 @@ $(window).load(function() {
 
 //	trace = new Samotraces.LocalTrace();
 //	trace = new Samotraces.KTBS.Trace('test','http://dsi-liris-silex.univ-lyon1.fr/ofs/ktbs/test/test/');
-	base = new Samotraces.KTBS.Base('http://127.0.0.1/ktbs/test_obsel_type/','test');
+	base = new Samotraces.KTBS.Base('http://dsi-liris-silex.univ-lyon1.fr/ofs/ktbs/collecte_v0_from_2014_03_05/');
+	//base = new Samotraces.KTBS.Base('http://127.0.0.1/ktbs/test/');
 	var id = (Date.now()).toString()+"_v0";
 	base.create_stored_trace(id);
-prompt('t','t');	
+//prompt('t','t');	
 	trace = base.get_trace(id);
 //	trace = new Samotraces.KTBS.Trace('test','http://127.0.0.1/ktbs/test/toto2/');
 

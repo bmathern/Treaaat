@@ -137,35 +137,48 @@ RecipeUI.prototype = {
 
 	build_concepts: function() {
 		function generate_concepts(s_array,cat) {
-			return s_array.map(function(str) {
-				var lbl = str.replace(/\s|[']/g,"_");
-				return {text: str, plural: str+"s", label: lbl, class: cat};
+			return s_array.map(function(arr) {
+				if(typeof(arr) === "string") {
+					arr = [arr, arr+"s"];
+				}
+				var lbl = arr[0].replace(/\s|[']/g,"_");
+				return {text: arr, label: lbl, class: cat};
 			});
 		}
 		list_ingr = [
 			"asperge",
-			"carotte", "chocolat", "crème fraîche",
-			"huile d'olive",
-			"lait",
-			"oeuf", "oignon",
-			"poire", "poivre", "poivron",
-			"sel", "sucre",
+			["beurre","beurré","beurrée"],
+			"carotte", "chocolat", ["crème fraîche"],
+			["huile d'olive"],
+			["lait"],
+			["oeuf","oeufs","œuf","œufs"], ["oignon","oignons","onion","onions"],
+			"poire", ["poivre","poivres","poivrer","poivrez","poivré","poivrés","poivrée","poivrées"], "poivron",
+			["sel","sels","saler","salez","salé","salés","salée","salées"], ["sucre","sucres","sucrer","sucrez","sucré","sucrés","sucrée","sucrées"],
 			"tomate"
 		];
 		list_ust = [
-			"batteur",
-			"fouet", "four",
+			"batteur","bol",
+			"casserole",["couteau","couteaux"],
+			"fouet", "four","fourchette",
 			"moule",
+			"poêle",
+			"saladier",
 			"verrine"
 		];
 		list_words = [
-			"ajoutez","mélangez","laissez reposer",
+			["ajouter","ajoutez"],
+			["enfourner","enfournez"],
+			["laisser reposer","laissez reposer"],
+			["mélanger","mélangez"],
+			["préchauffer","préchauffez"],
+			["th 6 (180°C)","thermostat 6 (180°C)"],
+			["th 7 (210°C)","thermostat 7 (210°C)"],
 		];
 		this.concepts = [];
 		this.ingredients = generate_concepts(list_ingr,"ingredient");
 		// add ingredients that are already in the recipe.
 		this.recipe.ingredients.forEach(function(i) {
-			this.ingredients.push({text: i.ingredient, plural: i.ingredient, label: i.label, class: "ingredient"})
+			this.ingredients.push({text: [i.ingredient], label: i.label, class: "ingredient"})
 		},this);
 		this.other_concepts = [].concat(generate_concepts(list_ust,"ustensile"));
 		this.other_concepts = this.other_concepts.concat(generate_concepts(list_words,undefined));
@@ -308,17 +321,17 @@ RecipeUI.prototype = {
 		} else {
 			var concept;
 			this.ingredients.forEach(function(c) {
-				if((text == c.text)||(text == c.plural)) {
-					concept = c;
-				}
+				c.text.forEach(function(t) {
+					if(text.toLowerCase() == t) { concept = c; }
+				});
 			});
 			if(concept === undefined) { // if ingredient not already in this.ingredients
 				// adds to this.ingredients
 				label = text.replace(/\s|[']/g,"_");;
-				this.ingredients.push({text: text, plural: text, label: label, class: "ingredient"});
+				this.ingredients.unshift({text: [text], label: label, class: "ingredient"});
 				this.update_concepts();
 			} else {
-				text = concept.text;
+				text = text;
 				label = concept.label;
 			}
 		}
@@ -369,7 +382,11 @@ console.log("on_event_add_image",e);
 		if(d.class !== undefined) {
 			this.recipe.add_annotation(d.text,d.class,d.label);
 			if(d.class == 'ingredient') {
-				this.add_ingredient(d.text,d.label);
+				var ingredient_text;
+				this.ingredients.forEach(function(c) {
+					if(c.label === d.label) { ingredient_text = c.text[0] };
+				});
+				this.add_ingredient(ingredient_text,d.label);
 			}
 		}
 		e.preventDefault;
@@ -394,7 +411,7 @@ console.log("on_event_add_image",e);
 		var recipe_div = document.getElementById(html_id);
 		this.generate_html_title(recipe_div,mode_edit);
 
-		this.generate_html_image(recipe_div,mode_edit);
+//		this.generate_html_image(recipe_div,mode_edit);
 
 		var col1 = DOM_Create.element('div',recipe_div,{class: 'col-sm-6'});
 		DOM_Create.element('h3',col1,{content: this.lang.meta});
