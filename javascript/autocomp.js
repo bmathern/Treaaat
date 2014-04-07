@@ -18,17 +18,54 @@
 // FAIT BUG accents -> closes autocomplete box
 // FAIT BUG autocompleted+"," -> breaks the annotation
 // FAIT BUG copier-coller => casse tout! oncopy, oncut et onpaste?
-/*
- -> lié au fait que le e.keyCode ou e.charCode ne renvoit pas le caractère, mais la touche
- => "7" au lieu de "è", d'où le problème de matching entre les mots.
- IDÉE DE SOLUTIONS:
- Découper le problème en deux :
- + l'appui sur la touche de charactère sert à mettre à jour les annotations
- mais ne propose pas de nouvelle autocomplétions
- => trouver un moyen de lancer un callback après l'événement keyup ?
+//
+// -> lié au fait que le e.keyCode ou e.charCode ne renvoit pas le caractère, mais la touche
+// => "7" au lieu de "è", d'où le problème de matching entre les mots.
+// IDÉE DE SOLUTIONS:
+// Découper le problème en deux :
+// + l'appui sur la touche de charactère sert à mettre à jour les annotations
+// mais ne propose pas de nouvelle autocomplétions
+// => trouver un moyen de lancer un callback après l'événement keyup ?
 
+
+/**
+ * A concept represents TODO 
+ * @typedef {Object} Concept
+ * @property {Array.<String>} variations Array of spelling variation of the concept TODO text->variations
+ * @property {String} label Label attached to the concept
+ * @property {String} class Class to which the concept belongs
+ * @todo TODO compléter description de ce que c'est.
+ * @example
+ * lychee_concept = {
+ *   variations: ["lychee","lychees","litchi","litchies"],
+ *   label: "lychee",
+ *   class: "fruit"
+ * };
  */
 
+/**
+ * @summary
+ * Autocompleter offers an autocomplete feature in <code>TEXTAREA</code> elements
+ * and allow to annotate the text based on the selected autocompletion.
+ * @description
+ * Autocompleter is a Javascript Object that adds autocompleting functionnality
+ * to a <code>TEXTAREA</code> HTML element. In addition to the autocompletion,
+ * the autocompleted text will be annotated, meaning that the actual text
+ * written will be tagged with two labels: one corresponding to the text's concept,
+ * and one corresponding to the concept's class.
+ * For instance, when writting the text "lychee", if the concept of "lychee" is
+ * defined as a fruit, the annotation will add the HTML class "lychee" and "fruit"
+ * to the <code>SPAN</code> element containing the text "lychee".
+ * If the text "lychee" is spellt differently accross the text (for instance, 
+ * "litchi", or at the plural form "lychees"), it will still be attached the 
+ * same label ("lychee").
+ * @requires <a href="http://jquery.com/">jQuery</a>
+ * @requires <a href="https://github.com/bmathern/jQuery-annotateTextarea">jQuery-annotateTextarea</a>
+ * @param {String} html_id ID of the HTML element where which
+ *     the Autocompleter will be attached to.
+ * @param {Array.<Concept>} concepts Array of Concepts objects
+ *     that will be proposed in the autocompletion list.
+ */
 var Autocompleter = function(html_id,concepts) {
 	this.text_input_el = document.getElementById(html_id);
 	this.type = this.text_input_el.tagName;
@@ -402,7 +439,7 @@ this.log("annotations_update2",pos_start,pos_end,offset,test_eq);
 					var new_word = concept.text[0];
 					if(is_capitalised) {
 						new_word = new_word[0].toUpperCase() + new_word.substr(1);
-					};
+					}
 this.log("new_word",new_word);
 					var new_text =  text.substr(0,word_pos)+new_word+text_after_cursor;
 					e.target.value = new_text;

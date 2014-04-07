@@ -17,6 +17,7 @@ Recipe.prototype = {
 	ingredients: [],
 	preparation: [],
 	images: [],
+	comments: [],
 	add_text: function(text) {
 		var last_inst = this.preparation[this.preparation.length-1];
 		if(last_inst && last_inst.type == "text") {
@@ -43,6 +44,11 @@ Recipe.prototype = {
 			return true;
 		}
 	},
+	update_ingredient: function(i,pos) {
+		i.qtt = i.qtt?i.qtt:0;
+		i.unit = i.unit?i.unit:'n/a';
+		this.ingredients[pos] = i;
+	},
 	stringify: function() {
 		var new_recipe = {};
 		new_recipe.title = this.title;
@@ -58,6 +64,7 @@ Recipe.prototype = {
 		this.ingredients = recipe.ingredients;
 		this.preparation = recipe.preparation;
 		this.images = recipe.images || [];
+		this.comments = recipe.comments || [];
 	}
 }
 
@@ -94,6 +101,7 @@ var RecipeUI = function(recipe) {
 	this.set_language("en"); // default language
 	this.build_concepts();
 	this.init_events();
+	this.edited = false;
 };
 
 
@@ -104,6 +112,8 @@ RecipeUI.prototype = {
 			case "fr":
 				this.lang = {
 					__lang__:		"fr",
+					"title":	"Titre : ",
+					"recipe-title":	"Titre de la recette...",
 					"meta":			"Infos",
 					"meta-prep":			"Préparation : ",
 					"meta-cooking":			"Cuisson : ",
@@ -113,13 +123,21 @@ RecipeUI.prototype = {
 					"meta-servings-before":	"Pour ",
 					"meta-servings-after":	" personnes",
 					"ingredients":	"Ingrédients",
+					"ingredient-of": "de",
 					"preparation":	"Préparation",
+					"save":	"Sauvegarder",
+					"comments": "Commentaires",
+					"comment-content": "Commentaire : ",
+					"comment-user": "Nom d'utilisateur : ",
+					"comment-submit": "Envoyer",
 				};
 				break;
 			case "en":
 			default:
 				this.lang = {
 					__lang__:		"en",
+					"title":	"Title: ",
+					"recipe-title":	"Recipe title...",
 					"meta":			"Infos",
 					"meta-prep":			"Preparation: ",
 					"meta-cooking":			"Cooking: ",
@@ -129,9 +147,22 @@ RecipeUI.prototype = {
 					"meta-servings-before":	"For ",
 					"meta-servings-after":	" people",
 					"ingredients":	"Ingredients",
+					"ingredient-of": "of",
 					"preparation":	"Preparation",
+					"save":	"Save",
+					"comments": "Comments",
+					"comment-content": "Comment: ",
+					"comment-user": "User name : ",
+					"comment-submit": "Submit",
 				};
 				break;
+		}
+	},
+	set_edited: function() {
+		if(this.edited === false) {
+			this.edited = true;
+			$('#save').removeClass('btn-success');
+			$('#save').addClass('btn-danger');
 		}
 	},
 
@@ -188,21 +219,14 @@ RecipeUI.prototype = {
 	update_concepts: function() {
 		this.concepts = this.ingredients.concat(this.other_concepts);
 		this.autocomplete_prep.set_concepts(this.concepts);
-		this.autocomplete_ingr.set_concepts(this.ingredients);
+		//this.autocomplete_ingr.set_concepts(this.ingredients);
 	},
 
 	add_ingredient: function(text,label,qtt,unit) {
 		if(this.recipe.add_ingredient(text,label,qtt,unit)) {
-			var li = DOM_Create.element('li',document.getElementById('ingredient-list'));
-			if(qtt && qtt != 0) {
-				DOM_Create.element('span',li,{class: 'quantity',content: qtt});
-				DOM_Create.text(li,' ');
-				if(unit && unit != 'n/a') {
-					DOM_Create.element('span',li,{class: 'unit',content: unit});
-					DOM_Create.text(li,' de ');
-				}
-			}
-			DOM_Create.element('span',li,{class: 'ingredient '+label,content: text});
+			var ul = document.getElementById('ingredient-list');
+			var li = DOM_Create.element('li',ul);
+			this.generate_html_ingredient_line(li,true,{ingredient:text,label:label,qtt:qtt,unit:unit});
 		}
 		$('body').trigger('recipe:ingredient:add',{text:text,label:label,qtt:qtt,unit:unit});
 	},
@@ -247,15 +271,19 @@ RecipeUI.prototype = {
 		// INIT THE EVENT LISTENERS
 		$('body').on('submit',"#recipe_form",this.prevent_default.bind(this));
 	//	$("#prep").on('keypress',this.on_event_key.bind(this));
-		$('body').on('keypress',"#qtt_input",this.on_event_space.bind(this));
-		$('body').on('keypress',"#unit_input",this.on_event_space.bind(this));
+		$('body').on('keypress',".qtt_input",this.on_event_space.bind(this));
+		$('body').on('keypress',".unit_input",this.on_event_space.bind(this));
 
 		$('body').on('Autocompleter:autocomplete',"textarea#prep-text",this.on_event_add_annotation.bind(this));
 		$('body').on('click',"#add_ingredient",this.on_event_add_ingredient.bind(this));
-		$('body').on('submit',"#ingredient_input",this.on_event_add_ingredient.bind(this));
+		$('body').on('submit',".ingredient_input",this.on_event_add_ingredient.bind(this));
 		$('body').on('click',"#save",this.on_event_save.bind(this));
 		$('body').on('change',"#pictures",this.on_event_add_image.bind(this));
-
+		$('body').on('click','.ingredient-edit',this.on_event_edit_ingredient.bind(this));
+		$('body').on('click','.ingredient-save',this.on_event_save_ingredient.bind(this));
+		$('body').on('click','.ingredient-del',this.on_event_remove_ingredient.bind(this));
+		$('body').on('input','input,textarea',this.set_edited.bind(this));
+		$('body').on('click','.ingredient-del',this.set_edited.bind(this));
 
 		// SAME INGREDIENT IS HIGHLIGHTED
 		var that = this;
@@ -294,7 +322,7 @@ RecipeUI.prototype = {
 		this.parse_prep();
 		// save on server side
 
-		$.post('save.php',{"recipe": this.recipe.stringify()})
+		$.post('save.php',{"recipe": this.recipe.stringify()},this.on_save_success.bind(this));
 
 /* 		// save as file		
 		// from http://stackoverflow.com/questions/3665115/create-a-file-in-memory-for-user-to-download-not-through-server
@@ -309,13 +337,69 @@ RecipeUI.prototype = {
 // */
 
 	},
+	on_save_success: function(data,text,jqXHR) {
+		this.edited = false;
+		$('#save').removeClass('btn-danger');
+		$('#save').addClass('btn-success');
+	},
 	on_event_add_ingredient: function(e,d) {
-		var qtt = $("#qtt_input").val();
+		var i = this.parse_ingredient_form(e);
+		this.add_ingredient(i.ingredient,i.label,i.qtt,i.unit);
+		$(".qtt_input",li).val('');
+		$(".unit_input",li).val('');
+		$(".ingredient_input",li).val('');
+		$(".qtt_input",li).focus();
+		e.preventDefault;
+		return false;
+	},
+	on_event_remove_ingredient: function(e) {
+		var li = $(e.target).closest('li');
+		var pos = this.walk_dom_get_item_num(li);
+		console.log(pos);
+		this.recipe.ingredients = this.recipe.ingredients.filter(function(i,key) {
+			return key !== pos;
+		});
+		li.remove();
+	},
+	walk_dom_get_item_num: function(el) {
+		var count = 0;
+		while(el.prev().length !== 0) {
+			el = el.prev();
+			count++;
+			//if(count > 20) { ok = false; }
+		}
+		return count;
+	},
+	on_event_edit_ingredient: function(e) {
+		$('#ingredient-add-form').css('visibility','hidden');
+		var li = $(e.target).closest('li');
+		var pos = this.walk_dom_get_item_num(li);
+		var ingr = this.recipe.ingredients[pos];
+		li.empty();
+		this.generate_html_ingredient_form(li,ingr);
+		//li.select('ingredient-save').css('visibility','visible');
+		//$('.ingredient-edit',li).css('visibility','hidden');
+	},
+	on_event_save_ingredient: function(e,d) {
+		var li = $(e.target).closest('li');
+		var pos = this.walk_dom_get_item_num(li);
+		var i = this.parse_ingredient_form(e,d);
+		li.empty();
+		this.recipe.update_ingredient(i,pos);
+		this.generate_html_ingredient_line(li[0],true,i);
+		//$('body').trigger('recipe:ingredient:add',{text:text,label:label,qtt:qtt,unit:unit});
+		if($('.ingredient_input').length === 1) {
+			$('#ingredient-add-form').css('visibility','visible');
+		} else { console.log($('.ingredient_input')); }
+	},
+	parse_ingredient_form: function(e,d) {
+		var li = $(e.target).closest('li');
+		var qtt = $(".qtt_input",li).val();
 		qtt = qtt==''?undefined:qtt;
-		var unit = $("#unit_input").val();
+		var unit = $(".unit_input",li).val();
 		unit = unit==''?undefined:unit;
 		var label, text;
-		text = $("#ingredient_input").val().toLowerCase();
+		text = $(".ingredient_input",li).val().toLowerCase();
 		if(d) {
 			label = d.label;
 		} else {
@@ -335,14 +419,8 @@ RecipeUI.prototype = {
 				label = concept.label;
 			}
 		}
-		this.autocomplete_ingr.init();
-		this.add_ingredient(text,label,qtt,unit);
-		$("#qtt_input").val('');
-		$("#unit_input").val('');
-		$("#ingredient_input").val('');
-		$("#qtt_input").focus();
-		e.preventDefault;
-		return false;
+		//this.autocomplete_ingr.init();
+		return {ingredient: text,label:label,qtt:qtt,unit:unit};
 	},
 	on_event_add_image: function(e,d) {
 console.log("on_event_add_image",e);
@@ -413,23 +491,22 @@ console.log("on_event_add_image",e);
 
 //		this.generate_html_image(recipe_div,mode_edit);
 
-		var col1 = DOM_Create.element('div',recipe_div,{class: 'col-sm-6'});
-		DOM_Create.element('h3',col1,{content: this.lang.meta});
+		var row1 = DOM_Create.element('div',recipe_div,{class: 'row'});
+		var col1 = DOM_Create.element('div',row1,{class: 'col-sm-6'});
 		this.generate_html_meta(col1,mode_edit);
 
-		DOM_Create.element('h3',col1,{content: this.lang.ingredients});
 		this.generate_html_ingredients(col1,mode_edit);
 
-		var col2 = DOM_Create.element('div',recipe_div,{class: 'col-sm-6'});
-		DOM_Create.element('h3',col2,{content: this.lang.preparation});
+		var col2 = DOM_Create.element('div',row1,{class: 'col-sm-6'});
 		this.generate_html_prep(col2,mode_edit);
 
+		var row2 = DOM_Create.element('div',recipe_div,{class: 'row'});
 		if(mode_edit) {
-			$('<button id="save">save</button>').appendTo(recipe_div);
+			$('<button id="save" class="btn btn-success">'+this.lang['save']+'</button>').appendTo(row2);
 
 			// LOADS STUFF
 			this.autocomplete_prep = new Autocompleter("prep-text",[]);
-			this.autocomplete_ingr = new Autocompleter("ingredient_input",[]);
+			//this.autocomplete_ingr = new Autocompleter("ingredient_input",[]);
 
 			this.update_concepts();
 
@@ -449,6 +526,7 @@ console.log("on_event_add_image",e);
 			this.autocomplete_prep.update_highlight();
 		}
 	
+		this.generate_html_comments(row2,mode_edit);
 	},
 	generate_html_form: function(html_id) {
 		this.generate_html(html_id,true);
@@ -458,12 +536,13 @@ console.log("on_event_add_image",e);
 			parent_el = DOM_Create.element('form',parent_el,{id: "recipe_form", class: "form-horizontal"});
 			parent_el.setAttribute("role","form");
 			var title = (this.recipe.title===undefined)?"":this.recipe.title;
-			$('<h2><input type="text" id="title" name="title" class="form-control input-lg" placeholder="Recipe title..." value="'+title+'"/></h2>').appendTo(parent_el);
+			$('<h2>'+this.lang['title']+'<input type="text" id="title" name="title" class="form-control input-lg" placeholder="'+this.lang['recipe-title']+'" value="'+title+'"/></h2>').appendTo(parent_el);
 		} else {
 			DOM_Create.element('h2',parent_el,{content: this.recipe.title});
 		}
 	},
 	generate_html_image: function(parent_el,mode_edit) {
+		var parent_el = DOM_Create.element('div',parent_el,{class: 'img-zone'});
 		if(mode_edit) {		
 			this.recipe.images.forEach(function(img,key) {
 				$('<div><img src="'+img.url+'"></img><input type="text" id="picture-'+key+'" name="picture-'+key+'" class="form-control" placeholder="Image description..." value="'+img.description+'"/></div>').appendTo(parent_el);
@@ -478,6 +557,8 @@ console.log(this);
 		}
 	},
 	generate_html_meta: function(parent_el,mode_edit) {
+		var parent_el = DOM_Create.element('div',parent_el,{class: 'meta-zone'});
+		DOM_Create.element('h3',parent_el,{content: this.lang.meta});
 		var r = this.recipe;
 		function m(type) {
 			return (r.meta[type] === undefined)?"":r.meta[type];
@@ -516,29 +597,77 @@ console.log(this);
 		}
 	},
 	generate_html_ingredients: function(parent_el,mode_edit) {
+		var parent_el = DOM_Create.element('div',parent_el,{class: 'ingr-zone'});
+		DOM_Create.element('h3',parent_el,{content: this.lang.ingredients});
 		//var ul = DOM_Create.element('ul',parentEl,{"class": "list-group"});
+		var ul, li;
 		var opt = mode_edit?{id:"ingredient-list"}:{};
-		var ul = DOM_Create.element('ul',parent_el,opt);
-		this.recipe.ingredients.map( function(i) {	
-			//var li = DOM_Create.element('li',ul,{"class": "list-group-item"});
-			var li = DOM_Create.element('li',ul);
-			var i_string = '';
-			if(i.qtt != 0) {
-				DOM_Create.element('span',li,{class: 'quantity',content: i.qtt});
-				DOM_Create.text(li,' ');
-				if(i.unit != 'n/a') {
-					DOM_Create.element('span',li,{class: 'unit',content: i.unit});
-					DOM_Create.text(li,' de ');
-				}
-			}
-			DOM_Create.element('span',li,{class: 'ingredient '+i.label,content: i.ingredient});
-			// i.comments
-		});
+		ul = DOM_Create.element('ul',parent_el,opt);
+		this.recipe.ingredients.forEach( function(i) {
+			li = DOM_Create.element('li',ul);
+			this.generate_html_ingredient_line(li,mode_edit,i);	
+		},this);
 		if(mode_edit) {
-			$('<ul><li><input type="text" name="qtt" id="qtt_input" size="2"/><input type="text" name="unit" id="unit_input" size="2"/> of <input type="text" name="ingredient" id="ingredient_input"/><button id="add_ingredient">+</button></li></ul>').appendTo(parent_el)
+			ul = DOM_Create.element('ul',parent_el);
+			li = DOM_Create.element('li',ul,{id: 'ingredient-add-form'});
+			this.generate_html_ingredient_form(li);
+		}
+	},
+	generate_html_ingredient_form: function(parent_el,i) {
+		var edit = true;
+		if(i === undefined) {
+			i = {ingredient: '',unit:'',qtt:''};
+			edit = false;
+		} else {
+			if(i.unit==="n/a") { i.unit = '' };
+			if(i.qtt===0) { i.qtt = '' };
+		}
+		$('<input type="text" name="qtt" class="qtt_input" size="2" value="'+i.qtt+'"/><input type="text" name="unit" class="unit_input" size="2" value="'+i.unit+'"/> ('+this.lang['ingredient-of']+') <input type="text" name="ingredient" class="ingredient_input" value="'+i.ingredient+'"/>').appendTo(parent_el);
+		if(edit) {
+			$('<button class="ingredient-save">ok</button>').appendTo(parent_el);
+		} else {
+			$('<button id="add_ingredient">+</button>').appendTo(parent_el);
+		}
+	},
+	generate_html_ingredient_line: function(li,mode_edit,i) {
+		//var li = DOM_Create.element('li',ul,{"class": "list-group-item"});
+		var i_string = '';
+		if(i.qtt !== 0 && i.qtt !== undefined) {
+			DOM_Create.element('span',li,{class: 'quantity',content: i.qtt});
+			DOM_Create.text(li,' ');
+			if(i.unit !== 'n/a' && i.unit !== undefined) {
+				DOM_Create.element('span',li,{class: 'unit',content: i.unit});
+				DOM_Create.text(li,' '+this.lang['ingredient-of']+' ');
+			}
+		}
+		DOM_Create.element('span',li,{class: 'ingredient '+i.label,content: i.ingredient});
+		if(mode_edit) {
+			$('<img class="ingredient-edit" src="images/icons/pencil.png"></img>').appendTo(li);
+			$('<img class="ingredient-del" src="images/icons/delete.png"></img>').appendTo(li);
+		}
+		// i.comments
+	},
+	generate_html_comments: function(parent_el,mode_edit) {
+		if(!mode_edit) {
+			var parent_el = DOM_Create.element('div',parent_el,{class: 'comment-zone'});
+			DOM_Create.element('h3',parent_el,{content: this.lang['comments']});
+			var div = DOM_Create.element('div',parent_el);
+			this.recipe.comments.forEach(function(c) {
+				var c_div = DOM_Create.element('div',div);
+				// PARSE ANNOTATIONS
+				DOM_Create.element('span',c_div,{content: c.text});
+				c.annotations.forEach(function(a) {
+				});
+				DOM_Create.element('span',c_div,{content: c.author});
+				DOM_Create.element('span',c_div,{content: (new Date(c.date)).toString()});
+			},this);
+			f_div = DOM_Create.element('form',div);
+			$('<span>'+this.lang['comment-user']+'</span><input type="text" value=""></input>\n<span>'+this.lang['comment-content']+'</span><textarea></textarea><input type="submit" value="'+this.lang['comment-submit']+'"></input>').appendTo(f_div);
 		}
 	},
 	generate_html_prep: function(parent_el,mode_edit) {
+		var parent_el = DOM_Create.element('div',parent_el,{class: 'prep-zone'});
+		DOM_Create.element('h3',parent_el,{content: this.lang.preparation});
 		var opt = mode_edit?{id:"steps"}:{};
 		var container = DOM_Create.element('div',parent_el,opt);
 		// TODO: sort annotations

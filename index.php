@@ -1,28 +1,50 @@
 <!doctype html>
 
 <?php
-	$language = "en";
+	$language = "fr";
 	$add_url = "";
 	if(isset($_GET['lang'])) {
 		$language = $_GET['lang'];
 		$add_url = "lang=$language&";
+	} elseif(false) { // isset($_SERVER['HTTP_ACCEPT_LANGUAGE'])) {
+		//$language = $_SERVER['HTTP_ACCEPT_LANGUAGE'];
+		// TODO -> parse language to select between the user's preferences
+		preg_match_all('/([a-z]{1,8}(-[a-z]{1,8})?)\s*(;\s*q\s*=\s*(1|0\.[0-9]+))?/i', $_SERVER['HTTP_ACCEPT_LANGUAGE'], $parsed_str);
+        	$lang_pref_array = array_combine($parsed_str[1], $parsed_str[4]);
+    		foreach($lang_pref_array as $lang => $pref) {
+		    if ($pref === '') $lang_pref_array[$lang] = 1;
+		}
+	        arsort($lang_pref_array, SORT_NUMERIC);
+		foreach($lang_pref_array as $lang => $pref) {
+			if(strcasecmp($lang.substr(0,2),"fr") == 0) {
+				$language = "fr";
+			} elseif (strcasecmp($lang.substr(0,2),"en") == 0) {
+				$language = "en";
+			}
+		}
+		echo "<!-- {$_SERVER['HTTP_ACCEPT_LANGUAGE']} -->\n";
+		echo "<!-- $language -->\n";
 	}
 	switch($language) {
 		case "fr":
 			$lang = array(
+				"title"		=>	"Treaaat: a Recipe Editor Augmented with Autocompletion, Annotation and Traces.",
 				"tab-list"	=>	"Toutes les recettes",
 				"tab-new"	=>	"Nouvelle recette",
 				"tab-view"	=> 	"Voir",
 				"tab-edit"	=>	"Éditer",
+				"info-trace"	=>	"Toutes les actions que vous effectuez sur cette page sont tracées et enregistrées (aucune information personnelle n'est collectée). <a href=\"#trace-pan\">Cliquez ici</a> pour afficher votre trace en cours de collecte.",
 			);
 			break;
 		case "en":
 		default:
 			$lang = array(
+				"title"		=>	"Treaaat: a Recipe Editor Augmented with Autocompletion, Annotation and Traces.",
 				"tab-list"	=>	"All recipes",
 				"tab-new"	=>	"New",
 				"tab-view"	=> 	"View",
 				"tab-edit"	=>	"Edit",
+				"info-trace"	=>	"All the actions that you perform on this interface are traced and recorded (no personal information is collected). <a href=\"#trace-pan\">Click here</a> to display your trace that is being collected.",
 			);
 			break;
 	}
@@ -44,7 +66,7 @@
 <head>
 
 <meta charset="utf-8">
-<title>Proto pour tester des idées de visualisation de recette</title>
+<title><?php echo $lang['title']; ?></title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" type="text/css" href="css/main.css">
@@ -76,9 +98,7 @@ function init() {
 		} ?>;
 
 	var UI = new RecipeUI(recipe);
-	<?php if(isset($_GET['lang'])) {
-		echo "UI.set_language('{$_GET['lang']}');";
-	} ?>
+	<?php	echo "UI.set_language('$language');"; ?>
 	<?php echo "var mode = '$mode';\n"; ?>
 	// new recipe
 	switch(mode) {
@@ -112,11 +132,27 @@ $(window).load(init);
 </head>
 <body>
 
-	<div style="width:100%;background-color:white;z-index:10;position:fixed;">
+<!--<div class="panel-group">
+<div style="width:100%;background-color:white;z-index:10;position:fixed;" class="panel panel-default">
+	<div id="trace-pan" class="panel-collapse collapse">
+		<div class="panel-body">
+			<div id="trace"></div>
+			<div id="scale"></div>
+		</div>
+	</div>
+	<div class="panel-headind">
+		<span><?php echo $lang['info-trace'] ?></span>
+	</div>
+</div>
+</div>
+-->
+	<div id="trace-pan" style="width:100%;background-color:white;z-index:10;position:fixed;top:-52px;">
 		<div id="trace"></div>
 		<div id="scale"></div>
 	</div>
-
+<div id="trace-disclamer">
+	<span><?php echo $lang['info-trace'] ?></span>
+</div>
 
 <!-- Modal -->
 <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
@@ -134,7 +170,7 @@ $(window).load(init);
 </div>
 
 
-	<div class="tabbable container" style="position:relative;top:83px;">
+	<div class="tabbable container" style="position:relative;top:30px;">
 		<ul class="nav nav-tabs">
 <?php
 	echo "\t\t\t<li$tab_list><a href=\"?{$add_url}mode=list\">{$lang['tab-list']}</a></li>";

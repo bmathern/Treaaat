@@ -3,8 +3,8 @@ $(window).load(function() {
 
 //	trace = new Samotraces.LocalTrace();
 //	trace = new Samotraces.KTBS.Trace('test','http://dsi-liris-silex.univ-lyon1.fr/ofs/ktbs/test/test/');
-	base = new Samotraces.KTBS.Base('http://dsi-liris-silex.univ-lyon1.fr/ofs/ktbs/collecte_v0_from_2014_03_05/');
-	//base = new Samotraces.KTBS.Base('http://127.0.0.1/ktbs/test/');
+//	base = new Samotraces.KTBS.Base('http://dsi-liris-silex.univ-lyon1.fr/ofs/ktbs/collecte_v01_from_2014_03_11/');
+	base = new Samotraces.KTBS.Base('http://127.0.0.1/ktbs/test/');
 	var id = (Date.now()).toString()+"_v0";
 	base.create_stored_trace(id);
 //prompt('t','t');	
@@ -30,7 +30,7 @@ $(window).load(function() {
 	/* TRACE VISUALISATION */
 	var opt = {
 		x: function(o) {
-//console.log("t:",o.attributes.count,(o.attributes.count - this.window.start)*this.scale_x,this.window.start);
+//console.log("t:",o.attributes.count,(o.attributes.count - this.window.start)*this.scale_x,this.window.start,this.scale_x,this.window.get_width());
 //console.log("x:",this.calculate_x(o.attributes.count || 0));
 			return this.calculate_x(o.get_attribute('count') || 0);
 		},
@@ -66,7 +66,7 @@ $(window).load(function() {
 		}
 	};
 	new Samotraces.UI.Widgets.TraceDisplayIcons('trace',trace,tw,opt);
-	new Samotraces.UI.Widgets.WindowScale('scale',tw);
+	//new Samotraces.UI.Widgets.WindowScale('scale',tw);
 
 	/* SELECTING OBSEL */
 	var sel = new Samotraces.Selector('Obsel');
@@ -182,8 +182,22 @@ console.log(o);
 		timer.set(count);		
 	};
 
+	function toggle_trace(e) {
+		var offset = "52";
+		var t_pan = $('#trace-pan');
+		if(t_pan.css('top') == '-'+offset+'px') {
+			t_pan.css('top','0px');
+			$('#trace-disclamer').css("margin-top",offset+"px");
+		} else {
+			t_pan.css('top','-'+offset+'px');
+			$('#trace-disclamer').css("margin-top","0px");
+		}
+	};
+
+	$('a[href="#trace-pan"]').on('click',toggle_trace);
+
 	$('body').on('click focusin',collector);
-	$('body').on('mouseenter mouseleave','a,.ingredient,.ustensile,.Autocompleter li',collector);
+	$('body').on('mouseenter mouseleave','a,.ingredient,.ustensile,.Autocompleter li,.meta-zone,.prep-zone,.ingr-zone,.comment-zone,.img-zone',collector);
 	$('body').on('keyup','input,textarea',collector);
 
 	// TODO autocomplete events -> selecting with arrows + autocompleting
@@ -209,12 +223,17 @@ function getXPath(element) {
 
 	var xpath = '';
 	for(true; element && element.nodeType === 1; element = element.parentNode) {
-		if(typeof(element.id) !== "undefined" && element.id !== "") return "#" + element.id + xpath;
+		var clss = "";
+		if(typeof(element.className) !== "undefined" && element.className !== "") {
+			console.log(element.className);
+			clss = "."+element.className.split(" ").join(".");
+		}
+		if(typeof(element.id) !== "undefined" && element.id !== "") return "#" + element.id + clss + xpath;
 		var pos = ($(element.parentNode)
 		          .children(element.tagName)
 		          .index(element) + 1);
 		pos = (pos > 1  ?  '[' + pos + ']'  :  '');
-		xpath = '/' + element.tagName.toLowerCase() + pos + xpath;
+		xpath = '/' + element.tagName.toLowerCase() + pos + clss + xpath;
 	}
 
 	return xpath;

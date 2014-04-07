@@ -42,6 +42,93 @@
 	};
 	
 
+// first: core/KTBS.js
+/**
+ * @summary Javascript KTBS Object that is bound to a KTBS. 
+ * @class Javascript KTBS Object that is bound to a KTBS. 
+ * @author Benoît Mathern
+ * @requires jQuery framework (see <a href="http://jquery.com">jquery.com</a>)
+ * @constructor
+ * @augments Samotraces.EventHandler
+ * @augments Samotraces.KTBS.Resource
+ * @description
+ * Samotraces.KTBS is a Javascript KTBS object that
+ * is bound to a KTBS. This Object implemetns the KTBS API.
+ * Methods are available to get the list of bases
+ * available in the KTBS. Access a specific base, etc.
+ *
+ * @param {String}	uri	URI of the KTBS to load.
+ */
+Samotraces.KTBS = function KTBS(uri) {
+	// KTBS is a Resource
+	Samotraces.KTBS.Resource.call(this,uri,uri,'KTBS',"");
+	this.bases = [];
+	this.builtin_methods = [];
+	this.force_state_refresh();
+};
+
+Samotraces.KTBS.prototype = {
+/////////// OFFICIAL API
+	/**
+	 * @todo METHOD NOT IMPLEMENTED
+	 */
+	list_builtin_methods: function() {},
+	/**
+	 * @todo METHOD NOT IMPLEMENTED
+	 */
+	get_builtin_method: function() {},
+	/**
+	 * Returns the array of the URI of the bases contained in the KTBS
+	 * @returns {Array<String>} Array of URI of bases.
+	 */
+	list_bases: function() {
+		return this.bases;
+	},
+	/**
+	 * @summary Returns the KTBS.Base with the given ID.
+	 * @returns Samotraces.KTBS.Base Base corresponding to the given ID
+	 * @param id {String} URI of the base
+	 */
+	get_base: function(id) {
+		return new Samotraces.KTBS.Base(this.uri+id,id);
+	},
+	/**
+	 * Create a new base.
+	 * @param id {String} URI of the base (optional)
+	 * @param label {String} Label of the base (optional)
+	 */
+	create_base: function(id, label) {
+		var new_base = {
+    		"@context":	"http://liris.cnrs.fr/silex/2011/ktbs-jsonld-context",
+			"@type":	"Base",
+			"@id":		id+"/",
+			"label":	label
+		};
+		$.ajax({
+			url: this.uri,
+			type: 'POST',
+			contentType: 'application/json',
+			data: JSON.stringify(new_base),
+			success: this.force_state_refresh.bind(this),
+			error: function(jqXHR,textStatus,error) {
+				console.log('query error');
+				console.log([jqXHR,textStatus,error]);
+			}
+		});
+	},
+///////////
+	/**
+	 * Overloads the {@link Samotraces.KTBS.Resouce#_on_state_refresh_} method.
+	 * @private
+	 */
+	_on_state_refresh_: function(data) {
+	console.log(data);
+		this._check_change_('bases', data.hasBase, 'ktbs:update');
+		this._check_change_('builtin_methods', data.hasBuildinMethod, 'ktbs:update');
+	},
+};
+
+
 // first: core/Obsel.js
 /**
  * Obsel is a shortname for the 
@@ -50,20 +137,44 @@
  * @typedef Obsel
  * @see Samotraces.Obsel
  */
+
+/**
+ * ObselParam is an object that contains parameters
+ * necessary to create a new obsel.
+ * This type of object is used in several methods
+ * such as the Obsel constructor, or the
+ * Trace.create_obsel method.
+ * The optional porperties varies depending on the
+ * method called.
+ * @typedef ObselParam
+ * @property {String} [id] Id of the obsel
+ * @property {Trace} [trace] Trace of the obsel
+ * @property {String} [type] Type of the obsel
+ * @property {Number} [begin] Timestamp of when the obsel starts
+ * @property {Number} [end] Timestamp of when the obsel ends
+ * @property {Object} [attributes] Attributes of the obsel.
+ * @property {Array<Relation>} [relations] Relations from this obsel.
+ * @property {Array<Relation>} [inverse_relations] Relations to this obsel.
+ * @property {Array<Obsel>} [source_obsels] Source obsels of the obsel.
+ * @property {String} [param.label] Label of the obsel.
+ * @todo FIXME DEFINE WHAT IS A RELATION
+ */
+
 /**
  * @summary JavaScript Obsel class
  * @class JavaScript Obsel class
- * @param {Object} param Parameters 
+ * @param {ObselParam} param Parameters of the obsel
  * @param {String} param.id Identifier of the obsel.
- * @param {Number} param.begin Timestamp of the obsel
- * @param {Number} param.end Timestamp of the obsel
+ * @param {Trace} param.Trace Trace of the obsel.
  * @param {String} param.type Type of the obsel.
+ * @param {Number} [param.begin=Date.now()] Timestamp of when the obsel starts
+ * @param {Number} [param.end=param.begin] Timestamp of when the obsel ends
  * @param {Object} [param.attributes] Attributes of the obsel.
- * @param {Array<Object>} [param.attributes] Attributes of the obsel.
- * @param {Array<FIXME>} [param.relations] Relations from this obsel.
- * @param {Array<FIXME>} [param.inverse_relations] Relations to this obsel.
+ * @param {Array<Relation>} [param.relations] Relations from this obsel.
+ * @param {Array<Relation>} [param.inverse_relations] Relations to this obsel.
  * @param {Array<Obsel>} [param.source_obsels] Source obsels of the obsel.
  * @param {String} [param.label] Label of the obsel.
+ * @todo FIXME RELATIONS ARE NOT YET SUPPORTED
  */
 // *
 Samotraces.Obsel = function Obsel(param) {
@@ -180,13 +291,19 @@ Samotraces.Obsel.prototype = {
 	 * Returns the time when the Obsel starts.
 	 * @returns {Number} Time when the Obsel starts.
 	 */
-	get_begin: 		function() { return this.begin;	},
+	get_begin: 		function() { 
+		//return this.get_trace().get_origin_offset() + this.begin;
+		return this.begin;
+	},
 	/**
 	 * @summary
 	 * Returns the time when the Obsel ends.
 	 * @returns {Number} Time when the Obsel ends.
 	 */
-	get_end: 		function() { return this.end;	},
+	get_end: 		function() {
+		//return this.get_trace().get_origin_offset() + this.end;
+		return this.end;
+	},
 	/**
 	 * @summary
 	 * Sets the type of the Obsel.
@@ -518,76 +635,71 @@ Samotraces.EventHandler = (function() {
 
 
 
-// last: core/KTBS.js
+// last: core/KTBS.Base.js
 /**
- * @summary Javascript KTBS Object that is bound to a KTBS. 
- * @class Javascript KTBS Object that is bound to a KTBS. 
+ * @class Javascript KTBS.Base Object that is bound to a KTBS. 
  * @author Benoît Mathern
  * @requires jQuery framework (see <a href="http://jquery.com">jquery.com</a>)
  * @constructor
  * @augments Samotraces.EventHandler
  * @augments Samotraces.KTBS.Resource
  * @description
- * Samotraces.KTBS is a Javascript KTBS object that
- * is bound to a KTBS. This Object can be seen as an API to
- * the KTBS. Methods are available to get the list of bases
- * available in the KTBS. Access a specific base, etc.
+ * Samotraces.KTBS.Base is a Javascript KTBS base
+ * object that is bound to a KTBS. This Object implements the KTBS API.
+ * Methods are available to get the 
+ * list of traces available in the KTBS base. Access a 
+ * specific trace, etc.
  *
- * This class is a first (quick and dirty) attempt to access
- * a KTBS from Javascript.
+ * @todo Fully implement KTBS API
  *
- * Note: this KTBS object is not an actual API to the KTBS.
- *
- * @todo update to a full JSON approach when the KTBS fully
- * supports JSON.
- *
- * @param {String}	uri	URI of the KTBS to load.
+ * @param {String}	uri	URI of the Base to load.
+ * @param {String}	[id]	ID of the Base to load.
  */
-Samotraces.KTBS = function KTBS(uri) {
-//	this.url = url;
-//	this.bases = [];
-//	this.refresh();
-
-
-	// KTBS is a Resource
-	Samotraces.KTBS.Resource.call(this,uri,uri,'KTBS',"");
-	this.bases = [];
-	this.builtin_methods = [];
+Samotraces.KTBS.Base = function Base(uri,id) {
+	// KTBS.Base is a Resource
+	if(id === undefined) { id = uri; }
+	Samotraces.KTBS.Resource.call(this,id,uri,'Base',"");
+	this.traces = [];
 	this.force_state_refresh();
-
 };
 
-Samotraces.KTBS.prototype = {
-/////////// OFFICIAL API
-	list_builtin_methods: function() {},
-	get_builtin_method: function() {},
-	list_bases: function() {
-		return this.bases;
+Samotraces.KTBS.Base.prototype = {
+	get: function(id) {},
+	/**
+	 * Gets the list of traces available in the base.
+	 * @returns {Array.<String>} Array of the ID of the traces available in the Base.
+	 */
+	list_traces: function() {
+		return this.traces;
 	},
 	/**
-	 * @summary Returns the KTBS.Base with the given ID.
-	 * @returns Samotraces.KTBS.Base Base corresponding to the given ID
-	 * @param id {String} URI of the base
+	 * @todo METHOD NOT IMPLEMENTED
 	 */
-	get_base: function(id) {
-		return new Samotraces.KTBS.Base(this.uri+id,id);
-	},
+	list_models: function() {},
 	/**
-	 * @param id {String} URI of the base (optional)
-	 * @param label {String} Label of the base (optional)
+	 * Create a stored trace in the KTBS
+	 * @param id {String} ID of the created trace
+	 * @param [model] {Model} Model of the trace
+	 * @param [origin] {Origin} Origin of the trace
+	 * @param [default_subject] {String} Default subject of the trace
+	 * @param [label] {String} Label of the trace
 	 */
-	create_base: function(id, label) {
-		var new_base = {
-    		"@context":	"http://liris.cnrs.fr/silex/2011/ktbs-jsonld-context",
-			"@type":	"Base",
-			"@id":		id+"/",
-			"label":	label
+	create_stored_trace: function(id,model,origin,default_subject,label) {
+		var new_trace = {
+			"@context":	"http://liris.cnrs.fr/silex/2011/ktbs-jsonld-context",
+			"@type":	"StoredTrace",
+			"@id":		id+"/"
 		};
+		new_trace.hasModel = (model==undefined)?"http://liris.cnrs.fr/silex/2011/simple-trace-model":model;
+		new_trace.origin = (origin==undefined)?"1970-01-01T00:00:00Z":origin;
+//			if(origin==undefined) new_trace.origin = origin;
+		if(default_subject==undefined) new_trace.default_subject = default_subject;
+		if(label==undefined) new_trace.label = label;
 		$.ajax({
 			url: this.uri,
 			type: 'POST',
 			contentType: 'application/json',
-			data: JSON.stringify(new_base),
+			data: JSON.stringify(new_trace),
 			success: this.force_state_refresh.bind(this),
 			error: function(jqXHR,textStatus,error) {
 				console.log('query error');
@@ -595,17 +707,77 @@ Samotraces.KTBS.prototype = {
 			}
 		});
 	},
+
+	/**
+	 * @todo METHOD NOT IMPLEMENTED
+	 */
+	create_computed_trace: function(id,method,parameters,sources,label) {},
+	/**
+	 * @todo METHOD NOT IMPLEMENTED
+	 */
+	create_model: function(id,parents,label) {},
+	/**
+	 * @todo METHOD NOT IMPLEMENTED
+	 */
+	create_method: function(id,parent,parameters,label) {},
 ///////////
+	/**
+	 * Overloads the {@link Samotraces.KTBS.Resouce#_on_state_refresh_} method.
+	 * @private
+	 */
 	_on_state_refresh_: function(data) {
-	console.log(data);
-		this._check_change_('bases', data.hasBase, 'ktbs:update');
-		this._check_change_('builtin_methods', data.hasBuildinMethod, 'ktbs:update');
+	//	console.log(data);
+		this._check_change_('label',data["http://www.w3.org/2000/01/rdf-schema#label"],'base:update');
+		this._check_change_('traces', data.contains, 'base:update');
 	},
-///////////
+/////////// ADDED / API
+	/**
+	 * Gets a trace from its ID
+	 * @param id {String} ID of the trace to get.
+	 * @return {Samotraces.KTBS.Trace} The retrieved Trace.
+	 */
+	get_trace: function(id) {
+		return new Samotraces.KTBS.Trace(this.uri+id+'/',id);
+	},
+////////////
 };
 
+
+// last: core/KTBS.Obsel.js
 /**
- * @summary Resource Objects have an uri, an id and an optional label
+ * @class Samotraces.KTBS.Obsel is part of the Samotraces.KTBS implementation.
+ * @augments Samotraces.Obsel
+ * @augments Samotraces.KTBS.Resource
+ * @todo TODO update set_methods
+ * -> sync with KTBS instead of local change
+ */
+Samotraces.KTBS.Obsel = function Obsel(param) {
+	Samotraces.KTBS.Resource.call(this,param.id,param.uri,'Obsel',param.label || "");
+
+	this._private_check_error(param,'trace');
+	this._private_check_error(param,'type');
+	this._private_check_default(param,'begin',	Date.now());
+	this._private_check_default(param,'end',		this.begin);
+	this._private_check_default(param,'attributes',	{});
+	this._private_check_undef(param,'relations',	[]); // TODO ajouter rel à l'autre obsel
+	this._private_check_undef(param,'inverse_relations',	[]); // TODO ajouter rel à l'autre obsel
+	this._private_check_undef(param,'source_obsels',		[]);
+}
+
+Samotraces.KTBS.Obsel.prototype = Samotraces.Obsel.prototype;
+
+/*
+Samotraces.KTBS.Obsel.prototype.get_ktbs_status = function() {
+	return this.ktbs_status
+};
+*/
+
+
+// last: core/KTBS.Resource.js
+/**
+ * @summary Resource Objects that is synchronised to a kTBS
+ * @description Resource Objects are KTBS objects. All resources
+ * have an uri, an id and an optional label
  * @class Resource Objects have an uri, an id and an optional label
  * @param {String} id Id of the Resource
  * @param {String} url URI of the Resource
@@ -645,13 +817,15 @@ Samotraces.KTBS.Resource = (function() {
 	 * on success.
 	 */
 	function force_state_refresh() {
-		
+		console.log(this.uri);	
+		//$.getJSON(this.uri,this._on_state_refresh_.bind(this));	
 		$.ajax({
 			url: this.uri,
 			type: 'GET',
 			dataType: 'json',
 			error: (function(jqXHR, textStatus, errorThrown) {
 console.log("error",this);
+console.log(textStatus,errorThrown);
 				Samotraces.log("Cannot refresh "+this.get_resource_type()+" " + this.uri + ": ", textStatus + ' ' + JSON.stringify(errorThrown));
 			}).bind(this),
 			success: this._on_state_refresh_.bind(this),
@@ -678,6 +852,14 @@ console.log("error",this);
 		this.auto_refresh_id?this.stop_auto_refresh():null;
 		this.auto_refresh_id = window.setInterval(this.force_state_refresh.bind(this), period*1000);
 	}
+	/**
+	 * @summary Stops the autorefresh synchronisation
+	 * of the Resource.
+	 * @memberof Samotraces.KTBS.Resource.prototype
+	 * @description
+	 * Stops the autorefresh synchronisation of
+	 * the Resource.
+	 */
 	function stop_auto_refresh() {
 		if(this.auto_refresh_id) {
 			window.clearInterval(this.auto_refresh_id);
@@ -685,7 +867,15 @@ console.log("error",this);
 		}
 	}
 //		function _on_state_refresh_(data) { this.data = data; console.log("here"); }
+	/**
+	 * @todo METHOD NOT IMPLEMENTED
+	 */
 	function get_read_only() {}
+	/**
+	 * @summary Delete the resource from the KTBS
+	 * @todo IMPROVE THIS METHOD SO THAT PROPER EVENT IS RAISED
+	 *     WHEN A RESOURCE IS DELETED.
+	 */
 	function remove() {
 		function refresh_parent() {
 			//TROUVER UN MOYEN MALIN DE RAFRAICHIR LA LISTE DES BASES DU KTBS...
@@ -699,11 +889,31 @@ console.log("error",this);
 			}
 		});
 	}
+	/**
+	 * @summary Returns the label of the Resource
+	 */
 	function get_label() { return this.label; }
+	/**
+	 * @todo METHOD NOT IMPLEMENTED
+	 */
 	function set_label() {}
+	/**
+	 * @todo METHOD NOT IMPLEMENTED
+	 */
 	function reset_label() {}
 
 	// ADDED FUNCTIONS
+	/**
+	 * Method used to check if the distant value is different
+	 * from the current local value (and update the local value
+	 * if there is a difference.
+	 * @private
+	 * @param local_field {String} Name of the field of the this 
+	 *     object containing the information to check.
+	 * @param distant {Value} Value of the distant information.
+	 * @param message_if_changed {String} Message to trigger if
+	 *     the information has been updated.
+	 */
 	function _check_change_(local_field,distant,message_if_changed) {
 		// TODO check if this is the wanted behaviour:
 		// If distant is undefined -> what to do?
@@ -741,107 +951,26 @@ console.log("error",this);
 })();
 
 
+// last: core/KTBS.Trace.js
 /**
- * @class Javascript KTBS.Base Object that is bound to a KTBS. 
- * @author Benoît Mathern
- * @requires jQuery framework (see <a href="http://jquery.com">jquery.com</a>)
- * @constructor
- * @augments Samotraces.EventHandler
- * @description
- * Samotraces.KTBS.Base is a Javascript KTBS base
- * object that is bound to a KTBS. This Object can be seen
- * as an API to the KTBS. Methods are available to get the 
- * list of traces available in the KTBS base. Access a 
- * specific trace, etc.
- *
- * This class is a first (quick and dirty) attempt to access
- * Bases from the KTBS.
- *
- * Note: this KTBS.Base object is not an actual API to the KTBS.
- *
- * @todo update to a full JSON approach when the KTBS fully
- * supports JSON.
- *
- * @param {String}	uri	URI of the Base to load.
- * @param {String}	[id]	ID of the Base to load.
- */
-Samotraces.KTBS.Base = function Base(uri,id) {
-	// KTBS.Base is a Resource
-	if(id === undefined) { id = uri; }
-	Samotraces.KTBS.Resource.call(this,id,uri,'Base',"");
-	this.traces = [];
-	this.force_state_refresh();
-};
-
-Samotraces.KTBS.Base.prototype = {
-	get: function(id) {},
-	list_traces: function() {
-		return this.traces;
-	},
-	list_models: function() {},
-	create_stored_trace: function(id,model,origin,default_subject,label) {
-		var new_trace = {
-			"@context":	"http://liris.cnrs.fr/silex/2011/ktbs-jsonld-context",
-			"@type":	"StoredTrace",
-			"@id":		id+"/"
-		};
-		new_trace.hasModel = (model==undefined)?"http://liris.cnrs.fr/silex/2011/simple-trace-model":model;
-		new_trace.origin = (origin==undefined)?"1970-01-01T00:00:00Z":origin;
-//			if(origin==undefined) new_trace.origin = origin;
-		if(default_subject==undefined) new_trace.default_subject = default_subject;
-		if(label==undefined) new_trace.label = label;
-		$.ajax({
-			url: this.uri,
-			type: 'POST',
-			contentType: 'application/json',
-			data: JSON.stringify(new_trace),
-			success: this.force_state_refresh.bind(this),
-			error: function(jqXHR,textStatus,error) {
-				console.log('query error');
-				console.log([jqXHR,textStatus,error]);
-			}
-		});
-	},
-
-	create_computed_trace: function(id,method,parameters,sources,label) {},
-	create_model: function(id,parents,label) {},
-	create_method: function(id,parent,parameters,label) {},
-///////////
-	_on_state_refresh_: function(data) {
-	//	console.log(data);
-		this._check_change_('label',data["http://www.w3.org/2000/01/rdf-schema#label"],'base:update');
-		this._check_change_('traces', data.contains, 'base:update');
-	},
-/////////// ADDED / API
-	get_trace: function(id) {
-		return new Samotraces.KTBS.Trace(this.uri+id+'/',id);
-	},
-////////////
-};
-
-/**
+ * @summary Trace object that is synchronised to a KTBS.
  * @class Javascript Trace Object that is bound to a KTBS trace. 
  * @author Benoît Mathern
  * @requires jQuery framework (see <a href="http://jquery.com">jquery.com</a>)
  * @constructor
- * @mixes Samotraces.EventHandler
+ * @augments Samotraces.EventHandler
+ * @augments Samotraces.KTBS.Resource
  * @description
  * Samotraces.KTBS.Trace is a Javascript Trace object
- * that is bound to a KTBS trace. This Object can be seen as
- * an API to the KTBS trace. Methods are available to get 
+ * that is bound to a KTBS trace. This Object implements the KTBS API.
+ * Methods are available to get 
  * the Obsels from the KTBS trace, create new Obsels, etc.
  *
- * This class is a first (quick and dirty) attempt to access
- * Traces from the KTBS.
- *
- * Note: this Trace object is not an actual API to the KTBS.
+ * Note: this Trace object does not implement all the methods
+ * available in the KTBS API yet.
  * For instance, this class do not support transformations.
- * Other example: new Obsels can be created on any trace.
- * This Trace object do not take into accound error messages
- * from the KTBS, etc.
  *
- * @todo update to a full JSON approach when the KTBS fully
- * supports JSON.
+ * @todo Fully implement KTBS API
  *
  * @param {String}	uri	URI of the KTBS trace to load.
  * @param {String}	[id]	ID of the KTBS trace to load.
@@ -858,27 +987,93 @@ Samotraces.KTBS.Trace = function Trace(uri,id) {
 	this.obsel_list_uri = "";
 	this.base_uri = "";
 	this.origin = "";
+	//this.origin_offset = (new Date(0)).getMilliseconds();
 	this.obsel_list = []; this.traceSet = [];
 
 	this.force_state_refresh();
 };
 
-//Samotraces.KTBS.Trace.prototype = Samotraces.LocalTrace.prototype;
-
 
 Samotraces.KTBS.Trace.prototype = {
 /////////// OFFICIAL API
+	/**
+	 * @description
+	 * Gets the base where the trace is stored.
+	 * @returns {String} URI of the base where the trace is stored.
+	 */
 	get_base: function() { return this.base_uri; },
+	/**
+	 * @description
+	 * Gets the model of the trace.
+	 * @returns {Model} Model of the trace.
+	 * @todo DEFINE WHAT IS A MODEL
+	 */
 	get_model: function() { return this.model_uri; },
+	/**
+	 * @description
+	 * Gets the origin of the trace.
+	 * @returns {Origin} Origin of the trace.
+	 * @todo DEFINE WHAT IS AN ORIGIN
+	 */
 	get_origin: function() { return this.origin; },
+	//get_origin_offset: function() { return this.origin_offset; },
+	/*ktbs_origin_to_ms: function(ktbs_date_str) {
+		var Y = ktbs_date_str.substr(0,4);
+		var M = ktbs_date_str.substr(5,2) - 1;
+		var D = ktbs_date_str.substr(8,2);
+		var h = ktbs_date_str.substr(11,2);
+		var m = ktbs_date_str.substr(14,2);
+		var s = ktbs_date_str.substr(17,2);
+		var ms = ktbs_date_str.substr(20,3);
+		return Date.UTC(Y,M,D,h,m,s,ms);
+	},*/
+	/**
+	 * @todo METHOD NOT IMPLEMENTED
+	 */
 	list_source_traces: function() {},
+	/**
+	 * @todo METHOD NOT IMPLEMENTED
+	 */
 	list_transformed_traces: function() {},
-	// @todo TODO add an optional CALLBACK
+	/**
+	 * @description
+	 * Returns the list of obsels in an optional time interval.
+	 * If no minimum time and no maximum time constraint are
+	 * defined, returns the whole list of obsels.
+	 * If one of the two constraints are defined, then returns
+	 * obsels matching the time constraints.
+	 *
+	 * Note: if an obsel overlaps with the start or the end
+	 * constraint, then it will be included (for instance an 
+	 * obsel that starts before the start constraint and ends
+	 * after that constraint will be included).
+	 * 
+	 * Note: the list returned by this method is the
+	 * list of Obsels that are loaded locally.
+	 * When this method is called, a query to the KTBS
+	 * is made to know if there are other Obsels matching
+	 * the query. If so, these other obsels will be loaded
+	 * in the local copy of the trace and a
+	 * {@link Samotraces.Trace#trace:create:obsel|trace:create:obsel}
+	 * event or a 
+	 * {@link Samotraces.Trace#trace:update|trace:update}
+	 * event will be triggered to notify that other
+	 * Obsels have been loaded.
+	 * @param {Number} [begin] Minimum time constraint
+	 * @param {Number} [end] Maximum time constraint
+	 * @param {Boolean} [reverse=false] Returns the obsel list in
+	 *     reverse chronological order if true and in normal
+	 *     chronological order if false.
+	 * @returns {Array.<Obsel>} List of relevant obsels
+	 * @todo REVERSE IS NOT YET TAKEN INTO ACCOUNT 
+	 */
+	// TODO add an optional CALLBACK???
 	list_obsels: function(begin,end,reverse) {
 		if(this.obsel_list_uri === "") {
 			console.log("Error in KTBS:Trace:list_obsels() unknown uri");
 			return false;
 		}
+//		$.getJSON(this.obsel_list_uri,this._on_refresh_obsel_list_.bind(this));
 		$.ajax({
 			url: this.obsel_list_uri,//+'.json',
 			type: 'GET',
@@ -893,10 +1088,19 @@ Samotraces.KTBS.Trace.prototype = {
 		});
 	},
 	
+	/**
+	 * @summary Forces the local obsel list to be synchronised
+	 * with the KTBS at a given refreshing rate.
+	 * @param {Number} period Time in seconds between two synchronisations.
+	 */
 	start_auto_refresh_obsel_list: function(period) {
 		this.auto_refresh_obsel_list_id?this.stop_auto_refresh_obsel_list():null;
 		this.auto_refresh_obsel_list_id = window.setInterval(this.list_obsels.bind(this), period*1000);
 	},
+	/**
+	 * @summary Stops the autorefresh synchronisation
+	 * of the obsel list.
+	 */
 	stop_auto_refresh_obsel_list: function() {
 		if(this.auto_refresh_obsel_list_id) {
 			window.clearInterval(this.auto_refresh_id);
@@ -906,10 +1110,13 @@ Samotraces.KTBS.Trace.prototype = {
 
 	/**
 	 * Retrieve an obsel in the trace from its ID.
+	 * If the obsel does not exist locally, returns
+	 * undefined and send a query to the KTBS
+	 * (which will result in adding this obsel locally
+	 * if it exists on the KTBS).
 	 * @param {String} id ID of the Obsel to retrieve
 	 * @returns {Obsel} Obsel that corresponds to this ID
 	 *     or undefined if the obsel was not found.
-	 * @todo TODO if undefined -> send a query to the KTBS
 	 * @todo TODO add an optional CALLBACK
 	 */	
 	get_obsel: function(id) {
@@ -929,6 +1136,12 @@ Samotraces.KTBS.Trace.prototype = {
 		}
 		return obs;
 	},
+	/**
+	 * Callback for queries where an obsel is expected as a result
+	 * Parses the JSON data from the KTBS to create a new Obsel locally
+	 * if it doesn't exist already.
+	 * @private
+	 */
 	_parse_get_obsel_: function(data,textStatus,jqXHR) {
 		var obs = {
 			attributes: {}
@@ -977,6 +1190,10 @@ Samotraces.KTBS.Trace.prototype = {
 	},
 
 ///////////
+	/**
+	 * Overloads the {@link Samotraces.KTBS.Resouce#_on_state_refresh_} method.
+	 * @private
+	 */
 	_on_state_refresh_: function(data) {
 //		console.log(data);
 		this._check_and_update_trace_type_(data['@type']);
@@ -985,6 +1202,7 @@ Samotraces.KTBS.Trace.prototype = {
 		this._check_change_('obsel_list_uri', data.hasObselList, 'trace:update');
 		this._check_change_('base_uri', data.inBase, '');
 		this._check_change_('origin', data.origin, '');
+		//this._check_change_('origin_offset',this.ktbs_origin_to_ms(data.origin),'');
 	},
 	_update_method_: function(trace_type,method_name) {
 		this[method_name] = this[trace_type+"_methods"][method_name];
@@ -1049,7 +1267,11 @@ Samotraces.KTBS.Trace.prototype = {
 	},
 	StoredTrace_methods: {
 		set_model: function(model) {},
-		set_origin: function(origin) {},
+		set_origin: function(origin) {
+			this.origin = origin;
+		//	this.origin_offset = (new Date(origin)).getMilliseconds();
+			// TODO sync with KTBS
+		},
 		get_default_subject: function() { return this.default_subject; },
 		set_default_subject: function(subject) {},
 		create_obsel: function(params) {
@@ -1122,36 +1344,6 @@ Samotraces.KTBS.Trace.prototype = {
 };
 
 
-
-/**
- * @augments Samotraces.Obsel
- * @todo TODO update set_methods
- * -> sync with KTBS instead of local change
- */
-Samotraces.KTBS.Obsel = function Obsel(param) {
-	// KTBS.Base is a Resource
-	Samotraces.KTBS.Resource.call(this,param.id,param.uri,'Obsel',param.label || "");
-
-	this._private_check_error(param,'trace');
-	this._private_check_error(param,'type');
-	this._private_check_default(param,'begin',	Date.now());
-	this._private_check_default(param,'end',		this.begin);
-	this._private_check_default(param,'attributes',	{});
-	this._private_check_undef(param,'relations',	[]); // TODO ajouter rel à l'autre obsel
-	this._private_check_undef(param,'inverse_relations',	[]); // TODO ajouter rel à l'autre obsel
-	this._private_check_undef(param,'source_obsels',		[]);
-}
-
-Samotraces.KTBS.Obsel.prototype = Samotraces.Obsel.prototype;
-
-/*
-Samotraces.KTBS.Obsel.prototype.get_ktbs_status = function() {
-	return this.ktbs_status
-};
-*/
-
-
-
 // last: core/LocalTrace.js
 /**
  * @summary Javascript Trace Object.
@@ -1181,25 +1373,83 @@ Samotraces.LocalTrace = function(source_traces) {
 		t.transformed_traces.push(this);
 	});
 	this.transformed_traces = [];
+	this.origin = "";
+	//this.origin_offset = (new Date(0)).getMilliseconds();
 
 };
 
 Samotraces.LocalTrace.prototype = {
-
+	/**
+	 * @description
+	 * Gets the label of the trace
+	 * @returns {String} Label of the trace
+	 */
 	get_label: function() { return this.label; },
+	/**
+	 * @description
+	 * Sets the label of the trace
+	 * @param {String} lbl Label of the trace
+	 */
 	set_label: function(lbl) {
 		this.label = lbl;
 		this.trigger('trace:edit_meta');
 	},
+	/**
+	 * @description
+	 * Resets the label to the empty string
+	 */
 	reset_label: function() {
 		this.label = "";
 		this.trigger('trace:edit_meta');
 	},
 
+	/**
+	 * @description
+	 * Returns the model of the trace
+	 * @returns Model of the trace
+	 * @todo UPDATE WHAT IS A MODEL
+	 */
 	get_model: function() { return this.model; },
+	/**
+	 * @description
+	 * Returns the origin of the trace
+	 * @returns Origin of the trace
+	 * @todo UPDATE WHAT IS AN ORIGIN 
+	 */
 	get_origin: function() { return this.origin; },
+	//get_origin_offset: function() { return this.origin_offset; },
+	/**
+	 * @description
+	 * Returns the source traces of this trace
+	 * @returns {Array.<Trace>} Source traces of this trace.
+	 */
 	list_source_traces: function() { return this.source_traces; },
+	/**
+	 * @description
+	 * Returns the traces transformed from this trace
+	 * @returns {Array.<Trace>} Trace transformed from this trace
+	 */
 	list_transformed_traces: function() { return this.transformed_traces; },
+	/**
+	 * @description
+	 * Returns the list of obsels in an optional time interval.
+	 * If no minimum time and no maximum time constraint are
+	 * defined, returns the whole list of obsels.
+	 * If one of the two constraints are defined, then returns
+	 * obsels matching the time constraints.
+	 *
+	 * Note: if an obsel overlaps with the start or the end
+	 * constraint, then it will be included (for instance an 
+	 * obsel that starts before the start constraint and ends
+	 * after that constraint will be included).
+	 * @param {Number} [begin] Minimum time constraint
+	 * @param {Number} [end] Maximum time constraint
+	 * @param {Boolean} [reverse=false] Returns the obsel list in
+	 *     reverse chronological order if true and in normal
+	 *     chronological order if false.
+	 * @returns {Array.<Obsel>} List of relevant obsels
+	 * @todo REVERSE IS NOT YET TAKEN INTO ACCOUNT 
+	 */
 	list_obsels: function(begin,end,reverse) {
 		// TODO reverse is ignored.
 		return this.obsel_list.filter(function(o) {
@@ -1223,20 +1473,58 @@ Samotraces.LocalTrace.prototype = {
 		});
 		return obs;
 	},
+	/**
+	 * @description
+	 * Sets the model of the trace
+	 * @param model Model of the trace
+	 * @todo UPDATE WHAT IS A MODEL
+	 */
 	set_model: function(model) {
 		this.model = model;
 		this.trigger('trace:edit_meta');
 	},
+	/**
+	 * @description
+	 * Sets the origin of the trace
+	 * @param origin Origin of the trace
+	 * @todo UPDATE WHAT IS AN ORIGIN
+	 */
 	set_origin: function(origin) {
 		this.origin = origin;
+	//	this.origin_offset = (new Date(origin)).getMilliseconds();
 		this.trigger('trace:edit_meta');
 	},
+	/**
+	 * @description
+	 * Returns the default subject of the trace
+	 * @returns {String} The trace default subject
+	 */
 	get_default_subject: function() { return this.subject;},
+	/**
+	 * @description
+	 * Set the default subject of the trace
+	 * @param {String} subject The trace default subject
+	 */
 	set_default_subject: function(subject) {
 		this.subject = subject;
 		this.trigger('trace:edit_meta');
 	},
 
+	/**
+	 * @description
+	 * Create a new obsel in the trace with the
+	 * given properties
+	 * @param {ObselParam} obsel_params Parameters
+	 *     corresponding to the obsel to create.
+	 * @param {String} obsel_params.type Type of the obsel.
+	 * @param {Number} [obsel_params.begin] Timestamp of when the obsel starts
+	 * @param {Number} [obsel_params.end] Timestamp of when the obsel ends
+	 * @param {Object} [obsel_params.attributes] Attributes of the obsel.
+	 * @param {Array<Relation>} [obsel_params.relations] Relations from this obsel.
+	 * @param {Array<Relation>} [obsel_params.inverse_relations] Relations to this obsel.
+	 * @param {Array<Obsel>} [obsel_params.source_obsels] Source obsels of the obsel.
+	 * @param {String} [obsel_params.label] Label of the obsel.
+	 */
 	create_obsel: function(obsel_params) {
 		obsel_params.id = this.count;
 		this.count++;
@@ -1245,6 +1533,11 @@ Samotraces.LocalTrace.prototype = {
 		this.obsel_list.push(obs);
 		this.trigger('trace:create_obsel',obs);
 	},
+	/**
+	 * @description
+	 * Removes the given obsel from the trace
+	 * @param {Obsel} obs Obsel to remove
+	 */
 	remove_obsel: function(obs) {
 		this.obsel_list = this.obsel_list.filter(function(o) {
 			return (o===obs)?false:true;
@@ -1283,7 +1576,7 @@ console.log(opt);
 					if(opt.mode === "keep") {
 						transformed_trace.create_obsel(o.to_Object());
 					}
-				} else  {
+				} else {
 					if(opt.mode === "remove") {
 						transformed_trace.create_obsel(o.to_Object());
 					}
@@ -1295,7 +1588,7 @@ console.log(opt);
 					if(opt.mode === "keep") {
 						transformed_trace.create_obsel(o.to_Object());
 					}
-				} else  {
+				} else {
 					if(opt.mode === "remove") {
 						transformed_trace.create_obsel(o.to_Object());
 					}
@@ -1367,11 +1660,11 @@ Samotraces.Selector = function(type,selection_mode,events) {
 
 Samotraces.Selector.prototype = {
 	/**
-     * Method to call to select an Object.
-     * @param {Object} object
-     *     Object that is added to the selection
+	 * Method to call to select an Object.
+	 * @param {Object} object
+	 *     Object to add to the selection
 	 * @fires Samotraces.Selector#selection:add
-     */
+	 */
 	select: function(object) {
 		if(this.mode === 'multiple') {
 			this.selection.push(object);
@@ -1388,9 +1681,9 @@ Samotraces.Selector.prototype = {
 		this.trigger('selection:add',object);
 	},
 	/**
-     * Method to empty the current selection.
+	 * Method to empty the current selection.
 	 * @fires Samotraces.Selector#selection:empty
-     */
+	 */
 	empty: function() {
 		this.selection = [];
 		/**
@@ -1405,7 +1698,7 @@ Samotraces.Selector.prototype = {
 	 * Method that checks if the selection is empty
 	 * @returns {Boolean} Returns true if the selection and empty 
 	 *     and false if the selection is not empty.
-     */
+	 */
 	is_empty: function() {
 		return (this.selection.length === 0);
 	},
@@ -1417,9 +1710,11 @@ Samotraces.Selector.prototype = {
 		return this.selection;
 	},
 	/**
-     * Method to call to remove an Object from the selection.
+	 * Method to call to remove an Object from the selection.
+	 * @param {Object} object
+	 *     Object to remove from the selection
 	 * @fires Samotraces.Selector#selection:remove
-     */
+	 */
 	unselect: function(object) {
 		if(this.mode === 'multiple') {
 			var found = false;
@@ -1445,10 +1740,12 @@ Samotraces.Selector.prototype = {
 		return true;
 	},
 	/**
-     * Method to call to toggle the selection of an Object.
+	 * Method to call to toggle the selection of an Object.
 	 * If the Object was previously unselected, it becomes selected.
 	 * If the Object was previously selected, it becomes unselected.
-     */
+	 * @param {Object} object
+	 *     Object to toggle from the selection
+	 */
 	toggle: function(object) {
 		if(this.mode === 'multiple') {
 			if(!this.unselect(object)) {
@@ -1484,7 +1781,7 @@ Samotraces.Selector.prototype = {
  * that stores the current time window.
  * This Object stores a time window and informs widgets or other
  * objects when the time window changes via the 
- * {@link Samotraces.TimeWindow#event:tw:update|tw:update}
+ * {@link Samotraces.TimeWindow#tw:update|tw:update}
  * event.
  * A {@link Samotraces.TimeWindow|TimeWindow} can be defined in two ways:
  *
@@ -1535,8 +1832,9 @@ Samotraces.TimeWindow.prototype = {
 //		this.set_width(this.width,time);
 	},
 	/** 
+	 * Sets the start time of the time window.
+	 * @param {Number} time Starting time of the time window.
 	 * @fires Samotraces.TimeWindow#tw:update
-	 * @todo Handle correctly the bind to the timer (if this.timer) 
 	 */
 	set_start: function(time) {
 		if(this.start != time) {
@@ -1552,22 +1850,29 @@ Samotraces.TimeWindow.prototype = {
 		}
 	},
 	/**
+	 * Sets the end time of the time window.
+	 * @param {Number} time Ending time of the time window.
 	 * @fires Samotraces.TimeWindow#tw:update
-	 * @todo Handle correctly the bind to the timer (if this.timer) 
 	 */
 	set_end: function(time) {
-		if(this.start != time) {
+		if(this.end != time) {
 			this.end = time;
 			this.__calculate_width();
 			this.trigger('tw:update');
 		}
 	},
+	/**
+	 * Gets the width of the time window (duration between start and end)
+	 * @returns {Number} Width of the time window
+	 */
 	get_width: function() {
 		return this.width;
 	},
 	/**
+	 * Sets the width of the time of the time window.
+	 * @param {Number} width New width of the time window.
+	 * @param {Number} [center=(start+end)/2] New center of the time window.
 	 * @fires Samotraces.TimeWindow#tw:update
-	 * @todo Handle correctly the bind to the timer (if this.timer) 
 	 */
 	set_width: function(width,center) {
 		if( center === undefined) {
@@ -1579,6 +1884,8 @@ Samotraces.TimeWindow.prototype = {
 		this.trigger('tw:update');
 	},
 	/**
+	 * Translates the time window with a time delta.
+	 * @param {Number} delta Time deltat that will be added to the time window.
 	 * @fires Samotraces.TimeWindow#tw:translate
 	 */
 	translate: function(delta) {
@@ -1590,7 +1897,12 @@ Samotraces.TimeWindow.prototype = {
 			this.trigger('tw:translate',delta);
 		}
 	},
-	/** @todo Handle correctly the bind to the timer (if this.timer) */
+	/**
+	 * Zooms the timewindow by multiplying the current width
+	 * by the given coefficient. Zoom in if the coefficient
+	 * is less than 1 and out if it is more than 1.
+	 * @param {Number} coef Coefficient of the zoom to apply.
+	 */
 	zoom: function(coef) {
 		this.set_width(this.width*coef);
 	},
@@ -1637,7 +1949,7 @@ Samotraces.Timer.prototype = {
 	 * @fires Samotraces.Timer#timer:update
 	 * @param {Number} time New time
 	 */
-	set: function(time) {
+	set_time: function(time) {
 		new_time = Number(time);
 		if(this.time != new_time) {
 			this.time = new_time; 
@@ -1649,6 +1961,20 @@ Samotraces.Timer.prototype = {
 			 */
 			this.trigger('timer:update',this.time);
 		}
+	},
+	/**
+	 * Sets the Timer to the given time.
+	 * @deprecated Use {@link Samotraces.Timer.set_time|set_time} instead.
+	 * @fires Samotraces.Timer#timer:update
+	 * @param {Number} time New time
+	 */
+	set: function(t) { return this.set_time(t); },
+	/**
+	 * Gets the current time of the Timer
+	 * @returns {Number} Current time of the Timer.
+	 */
+	get_time: function(time) {
+		return this.time;
 	},
 	/**
 	 * Sets or get the Timer's current time.
@@ -1669,6 +1995,12 @@ Samotraces.Timer.prototype = {
 		}
 	},
 
+	/**
+	 * Starts the play mode: the timer will be updated
+	 * according to the update_function every period
+	 * as specified at the initialisation of the Timer.
+	 * @todo SPECIFY WAYS TO CHANGE PERIOD AND UPDATE_FUNCTIOn
+	 */
 	play: function() {
 		var update = function() {
 			this.time = this.update_function(this.time);
@@ -1681,10 +2013,13 @@ Samotraces.Timer.prototype = {
 			 */
 			this.trigger('timer:play:update',this.time);
 		};
-		this.interval_id = window.setInterval(update.bind(this),this.period);
+		this.interval_id = window.setInterval(this.update_function.bind(this),this.period);
 		this.is_playing = true;
 		this.trigger('timer:play',this.time);
 	},
+	/**
+	 * Stops the play mode.
+	 */
 	pause: function() {
 		window.clearInterval(this.interval_id);
 		this.is_playing = false;
@@ -1735,12 +2070,8 @@ Samotraces.Timer.prototype = {
  * @abstract
  * @augments Samotraces.EventHandler
  * @description
- * Samotraces.DemoTrace is a Javascript Trace object.
- * Methods are available to get 
- * the Obsels from the trace, create new Obsels, etc.
- *
- * The trace is initialised empty. Obsels have to be created
- * by using the {@link Samotraces.DemoTrace#newObsel} method.
+ * This page documents the abstract Trace API.
+ * @todo DOCUMENT THIS FILE!!!!
  */
 
 /**
@@ -2126,11 +2457,13 @@ Samotraces.UI.Widgets.ObselInspector.prototype = {
 		this.datalist_element.appendChild(li_element);
 
 		li_element = document.createElement('li');
-		li_element.appendChild(document.createTextNode('begin: '+ (new Date(obs.get_begin())).toString()));
+		li_element.appendChild(document.createTextNode('begin: '+ obs.get_begin()));
+	//	li_element.appendChild(document.createTextNode('begin: '+ (new Date(obs.get_begin())).toString()));
 		this.datalist_element.appendChild(li_element);
 
 		li_element = document.createElement('li');
-		li_element.appendChild(document.createTextNode('end: '+ (new Date(obs.get_end())).toString()));
+		li_element.appendChild(document.createTextNode('end: '+ obs.get_end()));
+	//	li_element.appendChild(document.createTextNode('end: '+ (new Date(obs.get_end())).toString()));
 		this.datalist_element.appendChild(li_element);
 
 		for(var key in obs.attributes) {
@@ -2579,6 +2912,171 @@ Samotraces.UI.Widgets.TimeSlider.prototype = {
 
 
 
+// last: UI/Widgets/TraceDisplayCurve.js
+/**
+ * @summary Widget for visualising a trace where obsels are displayed as images.
+ * @class Widget for visualising a trace where obsels are displayed as images
+ * @author Benoît Mathern
+ * @requires d3.js framework (see <a href="http://d3js.org">d3js.org</a>)
+ * @constructor
+ * @mixes Samotraces.UI.Widgets.Widget
+ * @description
+ * DESCRIPTION TO COME...
+ */
+Samotraces.UI.Widgets.TraceDisplayCurve = function(divId,trace,time_window,options) {
+
+	options = options || {};
+
+	// WidgetBasicTimeForm is a Widget
+	Samotraces.UI.Widgets.Widget.call(this,divId);
+
+	this.add_class('Widget-TraceDisplayIcons');
+	$(window).resize(this.refresh_x.bind(this));
+
+	this.trace = trace;
+	this.trace.on('trace:update',this.draw.bind(this));
+	this.trace.on('trace:create_obsel',this.draw.bind(this));
+	this.trace.on('trace:remove_obsel',this.draw.bind(this));
+	this.trace.on('trace:edit_obsel',this.draw.bind(this));
+
+	this.window = time_window;
+	this.window.on('tw:update',this.refresh_x.bind(this));
+	this.window.on('tw:translate',this.translate_x.bind(this));
+
+//	this.obsel_selector = obsel_selector;
+//	this.window.addEventListener('',this..bind(this));
+
+
+	this.options = {};
+	// create function that returns value or function
+	var this_widget = this;
+	var bind_function = function(val_or_fun) {
+			if(val_or_fun instanceof Function) {
+				return val_or_fun.bind(this_widget);
+			} else {
+				return val_or_fun;
+			}
+		};
+	this.options.x = bind_function(options.x || function(o) {
+			return this.calculate_x(o.get_begin());
+		});
+	this.options.y = bind_function(options.y || function(o) {
+			return 100 - o.get_attribute('y');
+		});
+	this.options.width = bind_function(options.width || 16);
+	this.options.height = bind_function(options.height || 16);
+	this.options.url = bind_function(options.url || 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAG7AAABuwBHnU4NQAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAKsSURBVDiNrZNLaFNpFMd/33fvTa5tYpuq0yatFWugRhEXw9AuhJEZBCkiqJWCIErrxp241C6L6650M/WBowunoyCDCjKrGYZ0IbiwxkdUbGyaPmgSm8d9f25MbXUlzH95zv/8OOdwjlBKsVajU1kEtJiavNBsaKcBqq5/3fKDSwrKY33JdX7RAIxOZQGM3bHIymCyPZhZqT8p2d4sQGtY7+yObvhxMjsvp4uVKOA2QEIpxehUFl2IvuFUZ3rZcu/+9X7RWqg7Jxw/QAFhTdLRFJoY6N4SazONo1czs/2eUlNjfUn0Risne+Pp9yv18TvZwrl9iVb2J2JEQhoKKNke6UJ55LfMB4aSHeMne+Ppay/yAkBcTL9ma7Np7Yu3/n1lOjdQ8wLO793GzlgzFdcjYujoUpAt17j8LIfjB5zdvfXBv3OlX3NVy5SAOJVKhP94M29UXB8FFGoWE89nufTkHQ9nFlEKejZuoLe1iYrr8+fbee9UKhEGhB6SYrBoudPLtnsAQCnF768Kq1v2AxAC6l7AsuUCsGS5h4uWOx2SYlBqQoyUHW/O9gO+1i9dbfyciKGA/wol3pTrANh+QNnx5jQhRuQ3VZ+1Z1OUg92biZkG/+SL3Hu7gPfVzQBIX6mJlpAeD2vrWds3mth+wOtSlUczS1RdfzUX1iQtIT3uKzWhO4GajJnGnc2mcf+j4x1umJ4uVShUbRSwUHPWwdvCxuOYaRxwAjUpAXUjk7eP9bTrEUNbNf30Q5ThXV0c6WknGvoSjxgax3e0uzcyeRtQcqwvSa5qmaYuB4aSHeMNiEJgahJ9zWQRQ2Mo2TFu6nIgV7XMdZd48+Vc/3CqM30m1XX3wcxi8d3H2sitl3mUACkEyZam24e2bTHbTOPc1cxsf6Pu/3mmtfred/4ESQNKXG8VACoAAAAASUVORK5CYII=');
+
+	this.init_DOM();
+	this.data = this.trace.list_obsels();
+	this.draw();
+};
+
+Samotraces.UI.Widgets.TraceDisplayCurve.prototype = {
+	init_DOM: function() {
+
+
+		var div_elmt = d3.select('#'+this.id);
+		this.svg = div_elmt.append('svg');
+
+		// create the (red) line representing current time
+		if(typeof(this.window.timer) !== "undefined") {
+			this.svg.append('line')
+				.attr('x1','50%')
+				.attr('y1','0%')
+				.attr('x2','50%')
+				.attr('y2','100%')
+				.attr('stroke-width','1px')
+				.attr('stroke','red')
+				.attr('opacity','0.3');
+		}
+
+		this.scale_x = this.element.clientWidth/this.window.get_width();
+		this.translate_offset = 0;
+
+		this.svg_gp = this.svg.append('g')
+						.attr('transform', 'translate(0,0)');
+		this.svg_gp.append('path')
+				.attr('fill','none')
+				.attr('stroke','black')
+				.attr('stroke-width','1px')
+				.attr('d',"");
+
+		// event listeners
+		var widget = this;
+		this.add_behaviour('changeTimeOnDrag',this.element,{
+				onUpCallback: function(delta_x) {
+					var time_delta = -delta_x*widget.window.get_width()/widget.element.clientWidth;
+					widget.svg_gp.attr('transform','translate('+(-widget.translate_offset)+',0)');
+					widget.window.translate(time_delta);
+				},
+				onMoveCallback: function(offset) {
+					widget.svg_gp.attr('transform','translate('+(offset-widget.translate_offset)+',0)');
+				},
+			});
+		this.add_behaviour('zommOnScroll',this.element,{timeWindow: this.window});
+	},
+
+
+	// TODO: needs to be named following a convention 
+	// to be decided on
+	calculate_x: function(time) {
+		return x = (time - this.window.start)*this.scale_x + this.translate_offset;
+	},
+	translate_x: function(e) {
+		var time_delta = e.data;
+		this.translate_offset += time_delta*this.scale_x;
+		this.svg_gp
+			.attr('transform', 'translate('+(-this.translate_offset)+',0)');
+	},
+
+	refresh_x: function() {
+		this.scale_x = this.element.clientWidth/this.window.get_width();
+		this.translate_offset = 0;
+		this.svg_gp
+			.attr('transform', 'translate(0,0)');
+		this.d3Obsels()
+			.attr('d', d3.svg.line()
+				.x(this.options.x)
+				.y(this.options.y));
+	},
+
+	draw: function(e) {
+		if(e) {
+			switch(e.type) {
+				case "trace:update":
+					this.data = this.trace.list_obsels();
+					break;
+				default:
+					this.data = this.trace.obsel_list; // do not want to trigger the refreshing of list_obsels()...
+					break;
+				}
+		}
+
+		this.d3Obsels()
+			.attr('d', d3.svg.line()
+				.x(this.options.x)
+				.y(this.options.y));
+	},
+
+
+	d3Obsels: function() {
+		return this.svg_gp
+					.selectAll('path')
+					// TODO: ATTENTION! WARNING! obsels MUST have a field id -> used as a key.
+					//.data(this.data); //,function(d) { return d.id;});
+					.data([this.data]); // TODO: bogue in case no ID exists -> might happen with KTBS traces and new obsels
+	},
+
+
+};
+
+
+
+
+
+
+
 // last: UI/Widgets/TraceDisplayIcons.js
 /**
  * @summary Widget for visualising a trace where obsels are displayed as images.
@@ -2678,13 +3176,13 @@ Samotraces.UI.Widgets.TraceDisplayIcons = function(divId,trace,time_window,optio
 	this.options = {};
 	/**
 	 * VisuConfig is a shortname for the 
-	 * {@link Samotraces.Widgets.TraceDisplayIcons.VisuConfig}
+	 * {@link Samotraces.UI.Widgets.TraceDisplayIcons.VisuConfig}
 	 * object.
 	 * @typedef VisuConfig
-	 * @see Samotraces.Widgets.TraceDisplayIcons.VisuConfig
+	 * @see Samotraces.UI.Widgets.TraceDisplayIcons.VisuConfig
 	 */
 	/**
-	 * @typedef Samotraces.Widgets.TraceDisplayIcons.VisuConfig
+	 * @typedef Samotraces.UI.Widgets.TraceDisplayIcons.VisuConfig
 	 * @property {(number|function)}	[x]		
 	 *     X coordinates of the top-left corner of the 
 	 *     image (default: <code>function(o) {
@@ -2713,7 +3211,7 @@ Samotraces.UI.Widgets.TraceDisplayIcons = function(divId,trace,time_window,optio
 	 * the x position or y position of an icon. This 
 	 * makes it easy to define various types of behaviours.
 	 * Relevant methods to use are:
-	 * link Samotraces.Widgets.TraceDisplayIcons.calculate_x}
+	 * link Samotraces.UI.Widgets.TraceDisplayIcons.calculate_x}
 	 * See tutorial 
 	 * {@tutorial tuto1.3_visualisation_personalisation}
 	 * for more details and examples.

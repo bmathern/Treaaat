@@ -75,6 +75,19 @@ li.budget:before {
 	background: lightgrey;
 }
 
+.ingredient-edit, .ingredient-del {
+	margin-left: 4px;
+	margin-bottom: 2px;
+	cursor: pointer;
+	display: none;
+}
+li:hover {
+	background: #f5f5f5;
+}
+li:hover > .ingredient-edit, li:hover > .ingredient-del {
+	display: inline;
+}
+/*
 .ingredient:hover:after {
 	content: url("../images/icons/pencil.png") url("../images/icons/comment_add.png");
 	padding-right: 32px;
@@ -86,6 +99,12 @@ li.budget:before {
 .ustensile:hover:after {
 	content: url("../images/icons/pencil.png") url("../images/icons/comment_add.png");
 }
+*/
+
+#add_ingredient, .ingredient-list .ingredient-save {
+	display: inline;
+}
+
 .no-gutter {
 	padding-left: 0px !important;
 	padding-right: 0px !important;
